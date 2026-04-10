@@ -1,0 +1,1011 @@
+openapi: 3.0.3
+info:
+  title: Numgas API Contract
+  version: 1.0.0
+  description: >-
+    Kontrak API untuk sistem Numgas meliputi Auth & Account, Public Access,
+    SPPG Dashboard, dan School Dashboard.
+servers:
+  - url: /api/v1
+    description: Default API base path
+tags:
+  - name: 01 - Auth & Account
+    description: Endpoint registrasi dan login pengguna internal.
+  - name: 02 - Public Access
+    description: Endpoint publik tanpa autentikasi.
+  - name: 03 - SPPG Dashboard
+    description: Endpoint operasional untuk pengelola dapur.
+  - name: 04 - School Dashboard
+    description: Endpoint pelaporan untuk pihak sekolah.
+
+paths:
+  /auth/register/sppg:
+    post:
+      tags:
+        - 01 - Auth & Account
+      summary: Register SPPG
+      operationId: registerSppg
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSppgRequest'
+      responses:
+        '201':
+          description: Registrasi SPPG berhasil.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthRegisterResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/register/school:
+    post:
+      tags:
+        - 01 - Auth & Account
+      summary: Register Sekolah
+      operationId: registerSchool
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterSchoolRequest'
+      responses:
+        '201':
+          description: Registrasi sekolah berhasil.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthRegisterResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/login:
+    post:
+      tags:
+        - 01 - Auth & Account
+      summary: Login
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login berhasil.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /public/homepage:
+    get:
+      tags:
+        - 02 - Public Access
+      summary: Homepage Data
+      operationId: getHomepageData
+      responses:
+        '200':
+          description: Data homepage berhasil diambil.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomepageDataResponse'
+
+  /public/maps/distribution:
+    get:
+      tags:
+        - 02 - Public Access
+      summary: Maps Distribution
+      operationId: getMapsDistribution
+      responses:
+        '200':
+          description: Data peta distribusi berhasil diambil.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MapsDistributionResponse'
+
+  /public/articles:
+    get:
+      tags:
+        - 02 - Public Access
+      summary: Article List
+      operationId: getArticleList
+      responses:
+        '200':
+          description: Daftar artikel berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ArticleSummary'
+                required:
+                  - data
+
+  /public/articles/{articleId}:
+    get:
+      tags:
+        - 02 - Public Access
+      summary: Article Detail
+      operationId: getArticleDetail
+      parameters:
+        - $ref: '#/components/parameters/ArticleId'
+      responses:
+        '200':
+          description: Detail artikel berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ArticleDetail'
+                required:
+                  - data
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /public/sppg/{sppgId}:
+    get:
+      tags:
+        - 02 - Public Access
+      summary: Profile SPPG (Public)
+      operationId: getPublicSppgProfile
+      parameters:
+        - $ref: '#/components/parameters/SppgId'
+      responses:
+        '200':
+          description: Profil publik SPPG berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PublicSppgProfile'
+                required:
+                  - data
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /public/schools/{schoolId}:
+    get:
+      tags:
+        - 02 - Public Access
+      summary: Profile Sekolah (Public)
+      operationId: getPublicSchoolProfile
+      parameters:
+        - $ref: '#/components/parameters/SchoolId'
+      responses:
+        '200':
+          description: Profil publik sekolah berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/PublicSchoolProfile'
+                required:
+                  - data
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /sppg/dashboard/summary:
+    get:
+      tags:
+        - 03 - SPPG Dashboard
+      summary: Dashboard Summary
+      operationId: getSppgDashboardSummary
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ringkasan dashboard SPPG berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SppgDashboardSummary'
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sppg/menus/weekly/upload:
+    post:
+      tags:
+        - 03 - SPPG Dashboard
+      summary: Upload Weekly Menu (CSV)
+      operationId: uploadWeeklyMenu
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File CSV berisi jadwal menu 7 hari.
+              required:
+                - file
+      responses:
+        '201':
+          description: Upload menu mingguan berhasil.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sppg/nutrition/upload:
+    post:
+      tags:
+        - 03 - SPPG Dashboard
+      summary: Upload Nutrition Data (CSV)
+      operationId: uploadNutritionData
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: File CSV berisi data gizi.
+              required:
+                - file
+      responses:
+        '201':
+          description: Upload data gizi berhasil.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sppg/meals/documentation:
+    post:
+      tags:
+        - 03 - SPPG Dashboard
+      summary: Upload Meal Documentation
+      operationId: uploadMealDocumentation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                photo:
+                  type: string
+                  format: binary
+                targetSchoolIds:
+                  type: array
+                  items:
+                    type: string
+                productionDate:
+                  type: string
+                  format: date
+              required:
+                - photo
+                - targetSchoolIds
+      responses:
+        '201':
+          description: Dokumentasi makanan berhasil diunggah.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sppg/notifications:
+    get:
+      tags:
+        - 03 - SPPG Dashboard
+      summary: Notifications & Feedback
+      operationId: getSppgNotificationsAndFeedback
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Notifikasi dan feedback berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NotificationFeedback'
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sppg/reports/{reportId}/status:
+    patch:
+      tags:
+        - 03 - SPPG Dashboard
+      summary: Update Report Status
+      operationId: updateSppgReportStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ReportId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [received, reviewed]
+              required:
+                - status
+      responses:
+        '200':
+          description: Status laporan berhasil diperbarui.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /school/dashboard/summary:
+    get:
+      tags:
+        - 04 - School Dashboard
+      summary: School Summary
+      operationId: getSchoolDashboardSummary
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Ringkasan dashboard sekolah berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/SchoolSummary'
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /school/menus/today:
+    get:
+      tags:
+        - 04 - School Dashboard
+      summary: Today's Menu
+      operationId: getTodayMenu
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Detail menu hari ini berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TodayMenu'
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /school/evidence:
+    post:
+      tags:
+        - 04 - School Dashboard
+      summary: Upload Evidence
+      operationId: uploadSchoolEvidence
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                photo:
+                  type: string
+                  format: binary
+                notes:
+                  type: string
+              required:
+                - photo
+      responses:
+        '201':
+          description: Bukti penerimaan makanan berhasil diunggah.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /school/reports:
+    post:
+      tags:
+        - 04 - School Dashboard
+      summary: Submit Delivery Report
+      operationId: submitDeliveryReport
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+              required:
+                - note
+      responses:
+        '201':
+          description: Laporan pengiriman berhasil dikirim.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /school/reports/history:
+    get:
+      tags:
+        - 04 - School Dashboard
+      summary: Report History
+      operationId: getSchoolReportHistory
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Riwayat laporan berhasil diambil.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SchoolReportHistoryItem'
+                required:
+                  - data
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ArticleId:
+      name: articleId
+      in: path
+      required: true
+      schema:
+        type: string
+    SppgId:
+      name: sppgId
+      in: path
+      required: true
+      schema:
+        type: string
+    SchoolId:
+      name: schoolId
+      in: path
+      required: true
+      schema:
+        type: string
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    BadRequest:
+      description: Permintaan tidak valid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Tidak terautentikasi atau token tidak valid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Data tidak ditemukan.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    RegisterSppgRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        address:
+          type: string
+        sppgCode:
+          type: string
+        personInCharge:
+          type: string
+        password:
+          type: string
+          format: password
+      required:
+        - name
+        - email
+        - address
+        - sppgCode
+        - personInCharge
+        - password
+
+    RegisterSchoolRequest:
+      type: object
+      properties:
+        schoolName:
+          type: string
+        npsn:
+          type: string
+        email:
+          type: string
+          format: email
+        address:
+          type: string
+        password:
+          type: string
+          format: password
+      required:
+        - schoolName
+        - npsn
+        - email
+        - address
+        - password
+
+    AuthRegisterResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            userId:
+              type: string
+            role:
+              type: string
+              enum: [sppg, school]
+            email:
+              type: string
+              format: email
+      required:
+        - message
+        - data
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        accountId:
+          type: string
+          description: NPSN untuk sekolah atau Kode SPPG untuk dapur.
+      required:
+        - email
+        - password
+        - accountId
+
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+            role:
+              type: string
+              enum: [sppg, school]
+            name:
+              type: string
+      required:
+        - accessToken
+        - user
+
+    HomepageDataResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            headline:
+              type: string
+            subheadline:
+              type: string
+            stats:
+              type: object
+              properties:
+                totalSppg:
+                  type: integer
+                totalSchools:
+                  type: integer
+                totalMealsDistributed:
+                  type: integer
+      required:
+        - data
+
+    MapsDistributionResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            kitchens:
+              type: array
+              items:
+                $ref: '#/components/schemas/MapNodeKitchen'
+            schools:
+              type: array
+              items:
+                $ref: '#/components/schemas/MapNodeSchool'
+            links:
+              type: array
+              items:
+                $ref: '#/components/schemas/MapLink'
+      required:
+        - data
+
+    MapNodeKitchen:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        markerColor:
+          type: string
+          enum: [red]
+      required:
+        - id
+        - name
+        - lat
+        - lng
+
+    MapNodeSchool:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        lat:
+          type: number
+          format: double
+        lng:
+          type: number
+          format: double
+        markerColor:
+          type: string
+          enum: [blue]
+      required:
+        - id
+        - name
+        - lat
+        - lng
+
+    MapLink:
+      type: object
+      properties:
+        kitchenId:
+          type: string
+        schoolId:
+          type: string
+      required:
+        - kitchenId
+        - schoolId
+
+    ArticleSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+        coverImageUrl:
+          type: string
+          format: uri
+        publishedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+
+    ArticleDetail:
+      allOf:
+        - $ref: '#/components/schemas/ArticleSummary'
+        - type: object
+          properties:
+            content:
+              type: string
+            author:
+              type: string
+          required:
+            - content
+
+    PublicSppgProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+        capacityPerDay:
+          type: integer
+        servedSchools:
+          type: array
+          items:
+            type: object
+            properties:
+              schoolId:
+                type: string
+              schoolName:
+                type: string
+      required:
+        - id
+        - name
+
+    PublicSchoolProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        schoolName:
+          type: string
+        address:
+          type: string
+        partnerSppg:
+          type: object
+          properties:
+            sppgId:
+              type: string
+            sppgName:
+              type: string
+        dailyMenu:
+          $ref: '#/components/schemas/TodayMenu'
+      required:
+        - id
+        - schoolName
+
+    SppgDashboardSummary:
+      type: object
+      properties:
+        sppgName:
+          type: string
+        operationalStatus:
+          type: string
+          enum: [active, inactive, maintenance]
+        totalPartnerSchools:
+          type: integer
+      required:
+        - sppgName
+        - operationalStatus
+        - totalPartnerSchools
+
+    NotificationFeedback:
+      type: object
+      properties:
+        id:
+          type: string
+        schoolId:
+          type: string
+        schoolName:
+          type: string
+        type:
+          type: string
+          enum: [notification, feedback, complaint]
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [new, received, reviewed]
+      required:
+        - id
+        - message
+
+    SchoolSummary:
+      type: object
+      properties:
+        schoolName:
+          type: string
+        address:
+          type: string
+        partnerSppg:
+          type: object
+          properties:
+            sppgId:
+              type: string
+            sppgName:
+              type: string
+            address:
+              type: string
+      required:
+        - schoolName
+        - partnerSppg
+
+    TodayMenu:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        rice:
+          type: string
+        sideDish:
+          type: string
+        fruit:
+          type: string
+        nutrition:
+          type: object
+          properties:
+            calories:
+              type: number
+            protein:
+              type: number
+            carbohydrate:
+              type: number
+            fat:
+              type: number
+      required:
+        - date
+
+    SchoolReportHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        note:
+          type: string
+        rating:
+          type: integer
+        submittedAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [submitted, received, reviewed]
+      required:
+        - id
+        - note
+        - submittedAt
+
+    UploadResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            fileId:
+              type: string
+            fileName:
+              type: string
+            uploadedAt:
+              type: string
+              format: date-time
+      required:
+        - message
+
+    SuccessMessage:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        details:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+      required:
+        - message
