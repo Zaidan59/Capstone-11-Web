@@ -15,16 +15,18 @@ export default function Home() {
       <main className="bg-slate-50">
         <section className="flex flex-col-reverse lg:flex-row items-center justify-between gap-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-20">
           <div className="w-full lg:w-1/2 space-y-5 lg:space-y-7">
-            <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 text-xs font-bold px-3 md:px-4 py-1 md:py-2">
+            <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 text-[12px] font-bold px-3 md:px-4 py-1 md:py-2">
               🔵 PROGRAM NASIONAL 2024
             </span>
-            <h1 className="max-w-xl text-4xl sm:text-5xl lg:text-[60px] font-extrabold tracking-tight leading-tight">
+            <h1 className="max-w-xl text-[62px] sm:text-5xl lg:text-[62px] font-extrabold tracking-tight leading-[0.88] text-slate-950">
               Transparansi<br />
-              Program <span className="text-blue-700">Makan</span><br />
-              <span className="text-blue-700">Bergizi Gratis</span><br />
-              Untuk Semua
+              <span className="block">
+                Program <span className="text-blue-700">Makan</span>
+              </span>
+              <span className="block text-blue-700">Bergizi Gratis</span>
+              <span className="block">Untuk Semua</span>
             </h1>
-            <p className="max-w-xl text-gray-600 text-sm md:text-lg mt-4 md:mt-6 leading-relaxed">
+            <p className="max-w-xl text-gray-600 text-[18px] md:text-lg mt-4 md:mt-6 leading-relaxed">
               Platform layanan untuk monitoring menu sekolah dan operasional <br />
               dapur Satuan Pelayanan Pemenuhan Gizi (SPPG) secara real-time <br />
               untuk memastikan kualitas nutrisi anak bangsa yang optimal.
