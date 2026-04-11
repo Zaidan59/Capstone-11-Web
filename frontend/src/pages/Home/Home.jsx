@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import logo from "../../assets/Logo.png";
+import Navbar from "../../components/common/Navbar";
 import prabowo from "../../assets/prabowo.png";
 import icon from "../../assets/Icon.png";
 
@@ -10,31 +10,7 @@ export default function Home() {
 
   return (
     <div style={{ fontFamily: "'Public Sans', sans-serif" }}>
-      {/* Navbar */}
-      <nav className="sticky top-0 z-50 flex items-center justify-between px-8 py-1 bg-white shadow">
-        <div className="flex items-center space-x-4">
-          <img src={logo} alt="SIMBA Logo" className="w-12 h-12" />
-          <span className="font-bold text-[20]">SIMBA</span>
-        </div>
-        <div className="flex items-center space-x-8">
-          <a href="#" className="text-[#232B36] font-medium text-[14] hover:text-blue-700 transition">
-            Beranda
-          </a>
-          <a href="#" className="text-[#232B36] font-medium text-[14] hover:text-blue-700 transition">
-            Peta
-          </a>
-          <a href="#" className="text-[#232B36] font-medium text-[14] hover:text-blue-700 transition">
-            Artikel
-          </a>
-          <span className="h-8 w-px bg-slate-300 mx-2" />
-          <a href="#" className="text-[#232B36] font-medium text-[14] hover:text-blue-700 transition">
-            Masuk
-          </a>
-          <button className="bg-[#1673FF] text-white px-5 py-2 rounded-lg font-medium text-[14] ml-2 shadow-md hover:bg-blue-700 transition">
-            Daftar
-          </button>
-        </div>
-      </nav>
+      <Navbar />
 
       <main className="bg-slate-50">
         <section className="flex flex-col-reverse lg:flex-row items-center justify-between gap-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-20">
