@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import Navbar from "../../components/common/Navbar";
 import prabowo from "../../assets/prabowo.png";
 import icon from "../../assets/Icon.png";
+import FAQ from "./components/FAQ";
 
 export default function Home() {
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function Home() {
           </div>
         </section>
       </main>
+      <FAQ />
     </div>
   );
 }
