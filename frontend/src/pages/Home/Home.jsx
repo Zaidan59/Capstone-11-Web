@@ -3,6 +3,9 @@ import Navbar from "../../components/common/Navbar";
 import prabowo from "../../assets/prabowo.png";
 import icon from "../../assets/Icon.png";
 import FAQ from "./components/FAQ";
+import DashboardPemantauan from "./components/DashboardPemantauan";
+import About from "./components/About";
+
 
 export default function Home() {
   useEffect(() => {
@@ -48,6 +51,8 @@ export default function Home() {
           </div>
         </section>
       </main>
+      <About />
+      <DashboardPemantauan />
       <FAQ />
     </div>
   );
