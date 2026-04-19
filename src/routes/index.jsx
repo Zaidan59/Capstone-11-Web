@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import ProtectedRoute from './ProtectedRoute'
 
 // Public Pages
-import Home from '../pages/Home/Home'
+import Home from '../pages/Homepage/Home'
 import Maps from '../pages/Maps/Maps'
 import Artikel from '../pages/Artikel/Artikel'
 import ArtikelDetail from '../pages/Artikel/ArtikelDetail'
