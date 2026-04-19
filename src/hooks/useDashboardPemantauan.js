@@ -4,7 +4,7 @@ import { getAllSekolah } from "../services/sekolahService";
 import {
   fallbackSchoolUnits,
   fallbackSppgUnits,
-} from "../pages/Home/components/DashboardPemantauan.data";
+} from "../pages/Homepage/components/DashboardPemantauan.data";
 import {
   mapSchoolItem,
   mapSppgItem,
