@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import Navbar from "../../components/common/Navbar";
-import FAQ from "./components/FAQ";
-import DashboardPemantauan from "./components/DashboardPemantauan";
-import About from "./components/About";
 import Hero from "./components/Hero";
+import About from "./components/About";
+import Maps from "./components/Maps";
+import DashboardPemantauan from "./components/DashboardPemantauan";
+import FAQ from "./components/FAQ";
 import Footer from "../../components/common/Footer";
 
 
@@ -17,7 +18,7 @@ export default function Home() {
       <Navbar />
       <Hero />
       <About />
-
+      <Maps />
       <DashboardPemantauan />
       <FAQ />
       <Footer />
