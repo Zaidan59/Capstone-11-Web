@@ -25,16 +25,28 @@ export function mapSppgItem(item, index) {
       item?.location ?? item?.city ?? item?.address ?? "Lokasi belum tersedia",
     status: item?.statusLabel ?? formatStatus(item?.status),
     capacity: item?.capacity ?? formatCapacity(item?.capacityPerDay),
-    schoolsServed: item?.schoolsServed ?? item?.totalSchoolsServed ?? 0,
+    schoolsServed:
+      item?.schoolsServed ??
+      item?.totalSchoolsServed ??
+      item?.totalPartnerSchools ??
+      0,
     distributedPortions:
-      item?.distributedPortions ?? item?.totalDistributedPortions ?? "0",
+      item?.distributedPortions ??
+      item?.totalDistributedPortions ??
+      item?.totalMealsDistributed ??
+      "0",
     rating: item?.rating ?? item?.averageRating ?? "-",
   };
 }
 
 export function mapSchoolItem(item, index) {
   const kitchenName =
-    item?.kitchen ?? item?.sppgName ?? item?.partnerSppgName ?? "Belum terhubung";
+    item?.kitchen ??
+    item?.sppgName ??
+    item?.partnerSppgName ??
+    item?.partnerSppg?.sppgName ??
+    item?.sppg?.name ??
+    "Belum terhubung";
 
   return {
     id: item?.id ?? `school-${index}`,
