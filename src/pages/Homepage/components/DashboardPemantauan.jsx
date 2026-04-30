@@ -291,7 +291,7 @@ function SchoolCard({ item }) {
 }
 
 export default function DashboardPemantauan() {
-  const { sppgUnits, schoolUnits, isLoading, isUsingFallback } =
+  const { sppgUnits, schoolUnits} =
     useDashboardPemantauan();
 
   return (
@@ -301,13 +301,7 @@ export default function DashboardPemantauan() {
           <p className="text-center text-4xl font-bold text-slate-900">
             Dashboard Pemantauan Unit
           </p>
-          <p className="mt-2 text-center text-sm text-slate-500">
-            {isLoading
-              ? "Memuat data dashboard..."
-              : isUsingFallback
-              ? "Menampilkan data contoh sementara (API belum tersedia)."
-              : "Menampilkan data real-time dari API."}
-          </p>
+
         </div>
 
         <div
