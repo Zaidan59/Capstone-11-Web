@@ -24,8 +24,6 @@ export default function DashboardSekolah() {
     getSekolahById(1).then(res => setSekolah(res.data)).catch(() => {});
   }, []);
 
-  const user = { name: "Sekolah XX" };
-
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -83,7 +81,7 @@ export default function DashboardSekolah() {
         </div>
       )}
 
-      {/* NAVBAR */}
+         {/* NAVBAR */}
       <nav className="sticky top-0 z-40 bg-white shadow w-full">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-[52px]">
           <div className="flex items-center gap-2.5">

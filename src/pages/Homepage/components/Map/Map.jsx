@@ -1,6 +1,7 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { MapContainer, TileLayer, CircleMarker, Polyline, Popup, useMap } from "react-leaflet";
-import { useHomepageMap } from "../../../hooks/useHomepageMap";
+import { useHomepageMap } from "../../../../hooks/useHomepageMap";
 
 const Maps = () => {
   const { mapData, isLoading, isUsingFallback } = useHomepageMap();
@@ -90,8 +91,8 @@ const Maps = () => {
             </p>
           </div>
 
-          <a
-            href="/peta"
+          <Link
+            to="/maps"
             className="inline-flex w-fit items-center gap-2 border-b-2 border-[#136DEC] pb-1 text-base font-bold text-[#136DEC]"
           >
             View Full Map
@@ -101,7 +102,7 @@ const Maps = () => {
                 fill="#136DEC"
               />
             </svg>
-          </a>
+          </Link>
         </div>
 
         <div className="relative overflow-hidden rounded-3xl border border-slate-300 bg-slate-100">
