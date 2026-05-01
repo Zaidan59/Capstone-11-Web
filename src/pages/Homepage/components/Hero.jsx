@@ -26,11 +26,23 @@ export default function Hero() {
             untuk memastikan kualitas nutrisi anak bangsa yang optimal.
           </p>
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-6 md:mt-8">
-            <button className="inline-flex items-center justify-center bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold text-sm transition hover:shadow-[0_8px_40px_0_rgba(22,96,255,0.84)]">
+            <button
+              onClick={() => {
+                window.location.href = "/maps";
+              }}
+              className="inline-flex items-center justify-center bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold text-sm transition hover:shadow-[0_8px_40px_0_rgba(22,96,255,0.84)]"
+            >
               Lihat Peta Dapur MBG
               <img src={icon} alt="icon maps" className="ml-2 h-4 w-4" />
             </button>
-            <button className="inline-flex items-center justify-center bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold text-sm transition hover:shadow-[0_8px_40px_0_rgba(22,96,255,0.84)]">
+            <button
+              onClick={() => {
+                document
+                  .getElementById("section-about")
+                  .scrollIntoView({ behavior: "smooth" });
+              }}
+              className="inline-flex items-center justify-center bg-white border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold text-sm transition hover:shadow-[0_8px_40px_0_rgba(22,96,255,0.84)]"
+            >
               Pelajari Lebih Lanjut
             </button>
           </div>
