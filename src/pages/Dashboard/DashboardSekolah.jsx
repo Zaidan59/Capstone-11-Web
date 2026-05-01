@@ -11,10 +11,9 @@ import iconUnggahanTerbaru from '../../assets/IconUnggahanTerbaru.png';
 import menuDefault from '../../assets/menuDefault.png';
 import iconProfile from '../../assets/icon_profile.png';
 import { getSekolahById } from "../../services/sekolahService";
-import { useAuth } from '../../hooks/useAuth';
+import IconProfile from "../../assets/Icon_profile.png";
 
 export default function DashboardSekolah() {
-  const { user } = useAuth();
   const [sekolah, setSekolah] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
@@ -52,8 +51,6 @@ export default function DashboardSekolah() {
     }
   };
 
-  const displayName = user?.name || user?.identifier || 'Pengguna Sekolah';
-
   return (
     <div className="bg-[#F3F4F6] min-h-screen flex flex-col">
 
@@ -85,7 +82,7 @@ export default function DashboardSekolah() {
         </div>
       )}
 
-      {/* NAVBAR */}
+         {/* NAVBAR */}
       <nav className="sticky top-0 z-40 bg-white shadow w-full">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-[52px]">
           <div className="flex items-center gap-2.5">
@@ -99,7 +96,7 @@ export default function DashboardSekolah() {
               </svg>
               <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500" />
             </button>
-            <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
+            <span className="font-medium text-[14px] text-gray-700">{user.name}</span>
             <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer">
              <img src={iconProfile} alt="" />
             </div>
