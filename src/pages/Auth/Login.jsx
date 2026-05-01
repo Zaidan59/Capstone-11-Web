@@ -39,19 +39,25 @@ export default function Login() {
         setLoading(false)
         return
       }
-      login(validatedUser)
-      navigate(dashboardPath)
-      setLoading(false)
+      // Delay 1.5 detik untuk effect loading yang terasa
+      setTimeout(() => {
+        login(validatedUser)
+        navigate(dashboardPath)
+        setLoading(false)
+      }, 1500)
       return
     }
 
     try {
       const res = await loginService({ identifier, password, role })
-      login(res.data?.user)
-      navigate(dashboardPath)
+      // Delay 1.5 detik untuk consistency
+      setTimeout(() => {
+        login(res.data?.user)
+        navigate(dashboardPath)
+        setLoading(false)
+      }, 1500)
     } catch (err) {
       setError(err?.response?.data?.message ?? 'Login gagal. Periksa kembali data Anda.')
-    } finally {
       setLoading(false)
     }
   }
