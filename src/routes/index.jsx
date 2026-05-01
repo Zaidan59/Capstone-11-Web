@@ -39,10 +39,10 @@ export default function AppRoutes() {
           <Route path="/artikel/:id" element={<ArtikelDetail />} />
           <Route path="/profil/sppg/:id" element={<ProfilSPPG />} />
           <Route path="/profil/sekolah/:id" element={<ProfilSekolah />} />
-          
+
           {/* Protected Routes (that still use Layout navbar) */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/notification" element={<Notification />} />
+          <Route path="/notification" element={<Notification />} />
           </Route>
         </Route>
       </Routes>
