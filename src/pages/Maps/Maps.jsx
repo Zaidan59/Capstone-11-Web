@@ -4,6 +4,7 @@ import { FiArrowRight, FiMapPin, FiSearch, FiUsers, FiX } from "react-icons/fi";
 import { LuChefHat, LuGraduationCap, LuRoute } from "react-icons/lu";
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { useMapsPage } from "../../hooks/useMapsPage";
+import NavBar from "../../components/common/NavBar";
 
 const defaultCenter = [-6.225, 106.795];
 const filters = [
@@ -326,6 +327,8 @@ export default function Maps() {
   }, []);
 
   return (
+    <>
+    <NavBar />
     <main className="relative h-screen w-screen overflow-hidden bg-slate-950">
       <MapContainer center={defaultCenter} zoom={12} zoomControl={false} className="h-full w-full">
         <TileLayer
@@ -366,5 +369,6 @@ export default function Maps() {
         </div>
       ) : null}
     </main>
+    </>
   );
 }
