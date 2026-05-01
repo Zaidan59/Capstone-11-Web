@@ -21,21 +21,6 @@ export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Home />} />
-        <Route path="/maps" element={<Maps />} />
-        <Route path="/artikel" element={<Artikel />} />
-        <Route path="/artikel/:id" element={<ArtikelDetail />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/profil/sppg/:id" element={<ProfilSPPG />} />
-        <Route path="/profil/sekolah/:id" element={<ProfilSekolah />} />
-      
-        {/* Protected Routes — harus login dulu */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard/sppg" element={<DashboardSPPG />} />
-           <Route path="/dashboard/sekolah" element={<DashboardSekolah />} />
-          <Route path="/notification" element={<Notification />} />
         <Route element={<Layout />}>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
@@ -46,10 +31,10 @@ export default function AppRoutes() {
           <Route path="/register" element={<Register />} />
           <Route path="/profil/sppg/:id" element={<ProfilSPPG />} />
           <Route path="/profil/sekolah/:id" element={<ProfilSekolah />} />
-          <Route path="/dashboard/sppg" element={<DashboardSPPG />} />
-
-          {/* Protected Routes - harus login dulu */}
+          
+          {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard/sppg" element={<DashboardSPPG />} />
             <Route path="/dashboard/sekolah" element={<DashboardSekolah />} />
             <Route path="/notification" element={<Notification />} />
           </Route>
