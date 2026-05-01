@@ -39,9 +39,9 @@ function Footer() {
         <div className="space-y-4 pt-1">
           <h4 className="font-bold text-lg mb-6">Peta Situs</h4>
           <ul className="space-y-4 text-slate-300">
-            <li><a href="#" className="hover:text-white hover:underline">Dashboard Utama</a></li>
-            <li><a href="#" className="hover:text-white hover:underline">Peta Interaktif</a></li>
-            <li><a href="#" className="hover:text-white hover:underline">Database Sekolah</a></li>
+            <li><a href="/" className="hover:text-white hover:underline">Dashboard Utama</a></li>
+            <li><a href="/maps" className="hover:text-white hover:underline">Peta Interaktif</a></li>
+            <li><a href="#" className="hover:text-white hover:underline">daftar Sekolah</a></li>
             <li><a href="#" className="hover:text-white hover:underline">Daftar Dapur SPPG</a></li>
             <li><a href="#" className="hover:text-white hover:underline">Artikel & Edukasi</a></li>
           </ul>

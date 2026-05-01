@@ -106,7 +106,11 @@ export default function About() {
   ];
 
   return (
-    <section ref={aboutRef} className="bg-white py-20">
+    <section
+      id="section-about"
+      ref={aboutRef}
+      className="bg-white py-20 scroll-mt-20"
+    >
       <div className="mx-auto flex max-w-[1280px] flex-col gap-10 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center gap-4">
           <h2 className="text-center text-4xl font-bold text-slate-900">
@@ -146,7 +150,12 @@ export default function About() {
         </div>
 
         <div className="flex justify-center">
-          <button className="inline-flex items-center justify-center rounded-xl bg-[#136dec] px-8 py-3 text-base font-bold text-white">
+          <button
+            onClick={() => {
+              window.location.href = "/maps";
+            }}
+            className="inline-flex items-center justify-center rounded-xl bg-[#136dec] px-8 py-3 text-base font-bold text-white"
+          >
             Lihat Peta Dapur MBG
           </button>
         </div>
