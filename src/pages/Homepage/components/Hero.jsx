@@ -7,8 +7,7 @@ export default function Hero() {
     <main className="bg-slate-50">
       <section className="flex flex-col-reverse lg:flex-row items-center justify-between gap-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-20">
         <div className="w-full lg:w-1/2 space-y-5 lg:space-y-7">
-          <span className="inline-flex items-center rounded-full bg-blue-100 text-blue-700 text-[12px] font-bold px-3 md:px-4 py-1 md:py-2">
-            🔵 PROGRAM NASIONAL 2024
+          <span className="inline-flex items-center rounded-full text-blue-700 text-[12px] font-bold px-3 md:px-4 py-1 md:py-2">
           </span>
           <h1 className="max-w-xl text-[62px] sm:text-5xl lg:text-[62px] font-extrabold tracking-tight leading-[0.88] text-slate-950">
             Transparansi

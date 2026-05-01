@@ -166,13 +166,13 @@ function PopupCard({ item, point, onClose }) {
             </div>
           </div>
 
-          <button
-            type="button"
-            className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#136DEC] text-sm font-black text-white shadow-[0_8px_18px_rgba(19,109,236,0.28)] hover:bg-blue-700"
+          <Link
+            to={isSppg ? `/profil/sppg/${item.id}` : `/profil/sekolah/${item.id}`}
+            className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#136DEC] text-sm font-black text-white shadow-[0_8px_18px_rgba(19,109,236,0.28)] hover:bg-blue-700 no-underline"
           >
             {profileLabel}
             <FiArrowRight className="h-4 w-4" />
-          </button>
+          </Link>
         </div>
       </div>
 
