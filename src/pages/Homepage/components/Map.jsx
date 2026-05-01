@@ -1,9 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import L from "leaflet";
-import { FiArrowRight, FiMapPin, FiUsers, FiX, FiExternalLink } from "react-icons/fi";
+import {
+  FiArrowRight,
+  FiMapPin,
+  FiUsers,
+  FiX,
+  FiExternalLink,
+} from "react-icons/fi";
 import { LuChefHat, LuGraduationCap, LuRoute } from "react-icons/lu";
-import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import { useMapsPage } from "../../../hooks/useMapsPage";
 
 const defaultCenter = [-6.225, 106.795];
@@ -12,7 +25,9 @@ function getMarkerIcon(type, isSelected) {
   return L.divIcon({
     className: "",
     html: `<span class="map-dot map-dot-${type} ${isSelected ? "map-dot-selected" : ""}">${
-      type === "sppg" ? '<span class="map-dot-glyph">D</span>' : '<span class="map-dot-glyph">S</span>'
+      type === "sppg"
+        ? '<span class="map-dot-glyph">D</span>'
+        : '<span class="map-dot-glyph">S</span>'
     }</span>`,
     iconSize: type === "sppg" ? [28, 28] : [24, 24],
     iconAnchor: type === "sppg" ? [14, 14] : [12, 12],
@@ -105,12 +120,16 @@ function PopupCard({ item, point, onClose }) {
             <div className="min-w-0">
               <span
                 className={`inline-flex rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
-                  isSppg ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                  isSppg
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-blue-100 text-blue-700"
                 }`}
               >
                 {isSppg ? "Dapur SPPG" : "Sekolah"}
               </span>
-              <h2 className="mt-2 truncate text-lg font-black text-slate-950">{item.name}</h2>
+              <h2 className="mt-2 truncate text-lg font-black text-slate-950">
+                {item.name}
+              </h2>
             </div>
 
             <button
@@ -184,7 +203,12 @@ function Legend() {
 }
 
 export default function Maps() {
-  const { sppgItems: sppgData, schoolItems: schoolData, isLoading, isUsingFallback } = useMapsPage();
+  const {
+    sppgItems: sppgData,
+    schoolItems: schoolData,
+    isLoading,
+    isUsingFallback,
+  } = useMapsPage();
   const [selected, setSelected] = useState(null);
   const [popupPoint, setPopupPoint] = useState(null);
 
@@ -211,7 +235,11 @@ export default function Maps() {
 
   const selectedItem = useMemo(() => {
     if (!selected) return null;
-    return allItems.find((item) => item.type === selected.type && item.id === selected.id) ?? null;
+    return (
+      allItems.find(
+        (item) => item.type === selected.type && item.id === selected.id,
+      ) ?? null
+    );
   }, [allItems, selected]);
 
   const routeLines = useMemo(() => {
@@ -219,7 +247,9 @@ export default function Maps() {
 
     if (selectedItem.type === "sppg") {
       return selectedItem.schools
-        .map((schoolId) => validSchoolItems.find((school) => school.id === schoolId))
+        .map((schoolId) =>
+          validSchoolItems.find((school) => school.id === schoolId),
+        )
         .filter(Boolean)
         .map((school) => [getPosition(selectedItem), getPosition(school)]);
     }
@@ -240,63 +270,81 @@ export default function Maps() {
   }, []);
 
   return (
-    <section className="bg-slate-50 w-full px-6 py-16 md:px-12 lg:px-20">
-      <div className="mb-6 flex items-end justify-between">
-        <div>
-          <h2 className="text-2xl font-black text-slate-900 md:text-3xl">
-            Peta Sebaran Dapur &amp; Sekolah
-          </h2>
-          <p className="mt-1 text-sm font-medium text-slate-500">
-            Pilih wilayah untuk melihat detail SPPG dan unit sekolah terdekat.
-          </p>
+    <section className="w-full py-16">
+      <div className="mx-auto max-w-7xl px-6 md:px-12 ">
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 md:text-3xl">
+              Peta Sebaran Dapur &amp; Sekolah
+            </h2>
+            <p className="mt-1 text-sm font-medium text-slate-500">
+              Pilih wilayah untuk melihat detail SPPG dan unit sekolah terdekat.
+            </p>
+          </div>
+          <Link
+            to="/maps"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-[#136DEC] transition"
+          >
+            View Full Map
+            <FiExternalLink className="h-4 w-4" />
+          </Link>
         </div>
-        <Link
-          to="/maps"
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-[#136DEC] transition"
-        >
-          View Full Map
-          <FiExternalLink className="h-4 w-4" />
-        </Link>
-      </div>
 
-      {/* Map Container */}
-      <div className="relative h-[480px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgba(15,23,42,0.10)]">
-        <MapContainer center={defaultCenter} zoom={12} zoomControl={false} className="h-full w-full">
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          <MapController selectedItem={selectedItem} />
-          <MapProjection selectedItem={selectedItem} onClear={clearSelection} onPointChange={setPopupPoint} />
-
-          {routeLines.map((positions, index) => (
-            <Polyline
-              key={index}
-              positions={positions}
-              pathOptions={{
-                color: "#136DEC",
-                weight: 4,
-                opacity: 0.85,
-              }}
+        <div className="relative h-[480px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgba(15,23,42,0.10)]">
+          <MapContainer
+            center={defaultCenter}
+            zoom={12}
+            zoomControl={false}
+            className="h-full w-full"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-          ))}
 
-          <MarkerLayer items={allItems} selectedItem={selectedItem} onSelect={handleSelect} />
-        </MapContainer>
+            <MapController selectedItem={selectedItem} />
+            <MapProjection
+              selectedItem={selectedItem}
+              onClear={clearSelection}
+              onPointChange={setPopupPoint}
+            />
 
-        <PopupCard item={selectedItem} point={popupPoint} onClose={clearSelection} />
-        <Legend />
-        {isLoading ? (
-          <div className="absolute right-5 top-5 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-slate-700 shadow">
-            Memuat data peta...
-          </div>
-        ) : null}
-        {isUsingFallback ? (
-          <div className="absolute right-5 top-5 z-[500] rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
-            Menampilkan data contoh
-          </div>
-        ) : null}
+            {routeLines.map((positions, index) => (
+              <Polyline
+                key={index}
+                positions={positions}
+                pathOptions={{
+                  color: "#136DEC",
+                  weight: 4,
+                  opacity: 0.85,
+                }}
+              />
+            ))}
+
+            <MarkerLayer
+              items={allItems}
+              selectedItem={selectedItem}
+              onSelect={handleSelect}
+            />
+          </MapContainer>
+
+          <PopupCard
+            item={selectedItem}
+            point={popupPoint}
+            onClose={clearSelection}
+          />
+          <Legend />
+          {isLoading ? (
+            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-slate-700 shadow">
+              Memuat data peta...
+            </div>
+          ) : null}
+          {isUsingFallback ? (
+            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
+              Menampilkan data contoh
+            </div>
+          ) : null}
+        </div>
       </div>
     </section>
   );

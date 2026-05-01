@@ -1,11 +1,13 @@
 import { useEffect } from "react";
-import Navbar from "../../components/common/Navbar";
 import Hero from "./components/Hero";
 import About from "./components/About";
-import Maps from "./components/Maps";
+import Maps from "./components/Map";
 import DashboardPemantauan from "./components/DashboardPemantauan";
 import FAQ from "./components/FAQ";
 import Footer from "../../components/common/Footer";
+import { Link } from "react-router-dom";
+
+<Link to="/maps">View Full Map</Link> 
 
 
 export default function Home() {
@@ -15,7 +17,6 @@ export default function Home() {
 
   return (
     <div style={{ fontFamily: "'Public Sans', sans-serif" }}>
-      <Navbar />
       <Hero />
       <About />
       <Maps />
