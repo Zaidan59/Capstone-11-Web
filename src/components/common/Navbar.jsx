@@ -1,12 +1,11 @@
-
 import { Link } from "react-router-dom";
 import logo from "../../assets/Logo.png";
 
 export default function Navbar() {
   return (
-    <nav className="sticky top-0 z-50 bg-white shadow">
+    <nav className="fixed left-0 right-0 top-0 z-[1000] h-14 bg-white shadow">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-1">
+        <div className="flex h-14 items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link to="/" className="flex items-center space-x-4">
               <img src={logo} alt="SIMBA Logo" className="w-12 h-12" />
