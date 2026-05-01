@@ -1,5 +1,5 @@
-import { useNavigate, useParams } from "react-router-dom";
-import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useRef, useState, useEffect } from "react";
 import Footer from "../../components/common/Footer";
 import ProfilSPPGImage from "../../assets/ProfilSPPG.png";
 import Pekan1Image from "../../assets/pekan1.png";
@@ -90,8 +90,7 @@ const getMockSPPGData = (id) => ({
 
 export default function ProfilSPPG() {
   const navigate = useNavigate();
-  const { id } = useParams();
-  const [sppgData] = useState(() => getMockSPPGData(id));
+  const [sppgData] = useState(() => getMockSPPGData(1));
   const [isMenuDragging, setIsMenuDragging] = useState(false);
   const menuScrollRef = useRef(null)
   const isDraggingMenuRef = useRef(false)
@@ -143,6 +142,11 @@ export default function ProfilSPPG() {
     event.stopPropagation()
     menuHasDraggedRef.current = false
   }
+
+  // Scroll ke atas saat component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#f6f7f8]">

@@ -126,6 +126,11 @@ export default function ProfilSekolah() {
     fetchAll();
   }, [idSekolah]);
 
+  // Scroll ke atas saat component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
       <Navbar />

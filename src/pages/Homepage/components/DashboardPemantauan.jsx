@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { Link } from "react-router-dom";
 import { useDashboardPemantauan } from "../../../hooks/useDashboardPemantauan";
 
 function DragScroller({ children, ariaLabel }) {
@@ -8,9 +9,15 @@ function DragScroller({ children, ariaLabel }) {
     pointerId: null,
     startX: 0,
     scrollLeft: 0,
+    hasMoved: false,
   });
 
   const handlePointerDown = (event) => {
+    // Jangan tangkap events dari button/clickable elements
+    if (event.target.closest('button')) {
+      return;
+    }
+
     const scroller = scrollerRef.current;
     if (!scroller) return;
 
@@ -19,6 +26,7 @@ function DragScroller({ children, ariaLabel }) {
       pointerId: event.pointerId,
       startX: event.clientX,
       scrollLeft: scroller.scrollLeft,
+      hasMoved: false,
     };
     scroller.setPointerCapture(event.pointerId);
   };
@@ -33,17 +41,28 @@ function DragScroller({ children, ariaLabel }) {
     )
       return;
 
-    event.preventDefault();
-    scroller.scrollLeft =
-      dragState.scrollLeft - (event.clientX - dragState.startX) * 1.1;
+    const deltaX = Math.abs(event.clientX - dragState.startX);
+    
+    // Jika bergerak lebih dari 5px, tandai sebagai drag
+    if (deltaX > 5) {
+      dragStateRef.current.hasMoved = true;
+      event.preventDefault();
+    }
+    
+    if (dragState.hasMoved) {
+      scroller.scrollLeft =
+        dragState.scrollLeft - (event.clientX - dragState.startX) * 1.1;
+    }
   };
 
   const stopDragging = (event) => {
     const scroller = scrollerRef.current;
     const dragState = dragStateRef.current;
+    
+    if (dragState.pointerId !== event.pointerId) return;
+    
     if (
       scroller &&
-      dragState.pointerId === event.pointerId &&
       scroller.hasPointerCapture(event.pointerId)
     ) {
       scroller.releasePointerCapture(event.pointerId);
@@ -135,7 +154,8 @@ function SchoolIcon() {
 
 function SppgCard({ item }) {
   return (
-    <article className="flex w-[435px] flex-shrink-0 flex-col gap-6 rounded-[18px] bg-white p-6 shadow-[0px_4px_4px_0_rgba(0,0,0,0.25)]">
+    <Link to={`/profil/sppg/${item.id}`} className="w-[435px] flex-shrink-0 text-decoration-none hover:text-decoration-none">
+      <article className="flex flex-col gap-6 rounded-[18px] bg-white p-6 shadow-[0px_4px_4px_0_rgba(0,0,0,0.25)] hover:shadow-[0px_8px_12px_0_rgba(0,0,0,0.35)] transition-shadow h-full cursor-pointer">
       <div className="flex items-start gap-4">
         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#e7f0fd]">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#136dec] shadow-[0_6px_18px_rgba(19,109,236,0.12)]">
@@ -204,13 +224,15 @@ function SppgCard({ item }) {
           />
         </div>
       </div>
-    </article>
+      </article>
+    </Link>
   );
 }
 
 function SchoolCard({ item }) {
   return (
-    <article className="flex w-[435px] flex-shrink-0 flex-col gap-6 rounded-[18px] bg-white p-6 shadow-[0px_4px_4px_0_rgba(0,0,0,0.25)]">
+    <Link to={`/profil/sekolah/${item.id}`} className="w-[435px] flex-shrink-0 text-decoration-none hover:text-decoration-none">
+      <article className="flex flex-col gap-6 rounded-[18px] bg-white p-6 shadow-[0px_4px_4px_0_rgba(0,0,0,0.25)] hover:shadow-[0px_8px_12px_0_rgba(0,0,0,0.35)] transition-shadow h-full cursor-pointer">
       <div className="flex items-start gap-4">
         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#e7f0fd]">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#136dec] shadow-[0_6px_18px_rgba(19,109,236,0.12)]">
@@ -286,7 +308,8 @@ function SchoolCard({ item }) {
           </div>
         </div>
       </div>
-    </article>
+      </article>
+    </Link>
   );
 }
 
