@@ -15,108 +15,173 @@ import menuDefault3 from '../../assets/UnggahanDefault3.png';
 import iconProfile from '../../assets/icon_profile.png';
 import { getSekolahById } from "../../services/sekolahService";
 import { useAuth } from '../../hooks/useAuth';
-
+ 
 const STORAGE_KEY_DOCS = 'simba_dokumentasi';
 const STORAGE_KEY_NOTES = 'simba_catatan';
-
+const MAX_DOCS = 20;          // batas maksimal dokumen tersimpan
+const RESIZE_MAX_PX = 800;    // resize foto agar hemat localStorage
+const RESIZE_QUALITY = 0.75;  // kualitas JPEG setelah resize
+ 
 const DEFAULT_DOCS = [
   { foto: menuDefault1, fotoUrl: null, caption: 'Makanan Telah Diterima', time: '10:30 AM · Today' },
   { foto: menuDefault2, fotoUrl: null, caption: 'Sesi Makan Kelas 4',     time: '11:45 AM · 22 Mei' },
   { foto: menuDefault3, fotoUrl: null, caption: 'Verifikasi Bahan',        time: '09:15 AM · 22 Mei' },
 ];
-
+ 
 function getNow() {
   const now = new Date();
   return now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB · Hari ini';
 }
-
+ 
+/**
+ * Resize gambar ke max RESIZE_MAX_PX lalu kembalikan sebagai base64 string.
+ * Menggunakan Canvas API agar ukuran file kecil dan aman disimpan di localStorage.
+ */
+function resizeImageToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+ 
+        // Hitung dimensi baru agar tidak melebihi RESIZE_MAX_PX
+        if (width > RESIZE_MAX_PX || height > RESIZE_MAX_PX) {
+          if (width > height) {
+            height = Math.round((height * RESIZE_MAX_PX) / width);
+            width = RESIZE_MAX_PX;
+          } else {
+            width = Math.round((width * RESIZE_MAX_PX) / height);
+            height = RESIZE_MAX_PX;
+          }
+        }
+ 
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', RESIZE_QUALITY));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+ 
 export default function DashboardSekolah() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [sekolah, setSekolah] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [uploadedFileUrl, setUploadedFileUrl] = useState(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState(null); // base64 preview
   const [keterangan, setKeterangan] = useState('');
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
   const [showUnggahSuccess, setShowUnggahSuccess] = useState(false);
+  const [showStorageError, setShowStorageError] = useState(false);
   const [catatan, setCatatan] = useState('');
   const [recentDocs, setRecentDocs] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_DOCS);
       if (saved) return JSON.parse(saved).slice(0, 3);
     } catch {
-      // ignore parse errors
+      // abaikan parse error
     }
     return DEFAULT_DOCS;
   });
   const fileInputRef = useRef(null);
-
+ 
   useEffect(() => {
     getSekolahById(1).then(res => setSekolah(res.data)).catch(() => {});
   }, []);
-
-  const handleFileChange = (e) => {
+ 
+  // ─── Pilih file → konversi ke base64 dengan resize ───────────────────────
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
+    if (!file) return;
+    try {
+      const base64 = await resizeImageToBase64(file);
       setUploadedFile(file);
-      setUploadedFileUrl(url);
+      setUploadedFileUrl(base64); // base64 aman untuk localStorage
+    } catch {
+      console.error('Gagal membaca gambar');
     }
   };
-
+ 
+  // ─── Unggah foto ke localStorage ─────────────────────────────────────────
   const handleUnggahFoto = () => {
     if (!uploadedFile) {
       fileInputRef.current.click();
       return;
     }
-
+ 
     const newDoc = {
       foto: null,
-      fotoUrl: uploadedFileUrl,
+      fotoUrl: uploadedFileUrl,   // base64 — tetap ada setelah refresh
       caption: keterangan || uploadedFile.name,
       time: getNow(),
     };
-
-    const saved = localStorage.getItem(STORAGE_KEY_DOCS);
-    const existing = saved ? JSON.parse(saved) : DEFAULT_DOCS;
-    const updated = [newDoc, ...existing];
-    localStorage.setItem(STORAGE_KEY_DOCS, JSON.stringify(updated));
-    setRecentDocs(updated.slice(0, 3));
-
-    setShowUploadSuccess(true);
-    setTimeout(() => setShowUploadSuccess(false), 2500);
+ 
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_DOCS);
+      const existing = saved ? JSON.parse(saved) : DEFAULT_DOCS;
+      // Batasi jumlah dokumen agar localStorage tidak penuh
+      const updated = [newDoc, ...existing].slice(0, MAX_DOCS);
+      localStorage.setItem(STORAGE_KEY_DOCS, JSON.stringify(updated));
+      setRecentDocs(updated.slice(0, 3));
+ 
+      setShowUploadSuccess(true);
+      setTimeout(() => setShowUploadSuccess(false), 2500);
+    } catch (err) {
+      // localStorage penuh (QuotaExceededError)
+      console.error('localStorage penuh:', err);
+      setShowStorageError(true);
+      setTimeout(() => setShowStorageError(false), 3000);
+    }
+ 
+    // Reset state
     setUploadedFile(null);
     setUploadedFileUrl(null);
     setKeterangan('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
-
+ 
+  // ─── Unggah catatan ke localStorage ──────────────────────────────────────
   const handleUnggahCatatan = () => {
     if (!catatan.trim()) return;
-
+ 
     const newCatatan = {
       type: 'success',
       judul: catatan.trim(),
-      meta: 'Hari ini, pukul ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB - Admin Sekolah',
+      meta:
+        'Hari ini, pukul ' +
+        new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) +
+        ' WIB - Admin Sekolah',
       kutipan: null,
     };
-
-    const saved = localStorage.getItem(STORAGE_KEY_NOTES);
-    const existing = saved ? JSON.parse(saved) : [];
-    const updated = [newCatatan, ...existing];
-    localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(updated));
-
+ 
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_NOTES);
+      const existing = saved ? JSON.parse(saved) : [];
+      const updated = [newCatatan, ...existing];
+      localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(updated));
+    } catch (err) {
+      console.error('localStorage penuh:', err);
+    }
+ 
     setShowUnggahSuccess(true);
     setTimeout(() => setShowUnggahSuccess(false), 2500);
     setCatatan('');
   };
-
+ 
   const displayName = user?.name || user?.identifier || 'Pengguna Sekolah';
-
+ 
   return (
     <div className="bg-[#F3F4F6] min-h-screen flex flex-col">
-
-      {/* Modal Sukses Upload Foto */}
+ 
+      {/* ── Modal Sukses Upload Foto ── */}
       {showUploadSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center px-16 py-12 border-4 border-green-400 animate-fade-in">
@@ -129,8 +194,8 @@ export default function DashboardSekolah() {
           </div>
         </div>
       )}
-
-      {/* Modal Sukses Unggah Catatan */}
+ 
+      {/* ── Modal Sukses Unggah Catatan ── */}
       {showUnggahSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center px-16 py-12 border-4 border-green-400">
@@ -143,8 +208,23 @@ export default function DashboardSekolah() {
           </div>
         </div>
       )}
-
-      {/* NAVBAR */}
+ 
+      {/* ── Modal Error Storage Penuh ── */}
+      {showStorageError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+          <div className="bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center px-16 py-12 border-4 border-red-400">
+            <div className="w-20 h-20 rounded-full border-4 border-red-400 flex items-center justify-center mb-4">
+              <svg width="44" height="44" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-red-500">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <span className="text-red-500 font-bold text-2xl">Penyimpanan Penuh</span>
+            <span className="text-slate-500 text-sm mt-2 text-center">Hapus beberapa foto lama lalu coba lagi.</span>
+          </div>
+        </div>
+      )}
+ 
+      {/* ── NAVBAR ── */}
       <nav className="sticky top-0 z-40 bg-white shadow w-full">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-[52px]">
           <div className="flex items-center gap-2.5">
@@ -169,11 +249,11 @@ export default function DashboardSekolah() {
           </div>
         </div>
       </nav>
-
-      {/* MAIN CONTENT */}
+ 
+      {/* ── MAIN CONTENT ── */}
       <div className="flex-1 w-full">
         <div className="max-w-6xl mx-auto py-8 px-6">
-
+ 
           {/* Header */}
           <div className="mb-6">
             <h1 className="font-bold text-[32px] md:text-[36px]">Dashboard Operasional Sekolah</h1>
@@ -184,7 +264,7 @@ export default function DashboardSekolah() {
               Senin, 25 Mei 2026
             </p>
           </div>
-
+ 
           {/* Card Sekolah */}
           <div className="bg-white rounded-xl shadow p-6 mb-6">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
@@ -216,7 +296,7 @@ export default function DashboardSekolah() {
               </div>
             </div>
           </div>
-
+ 
           {/* Menu Hari Ini */}
           <div className="p-1 mb-1">
             <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-slate-800">
@@ -224,7 +304,7 @@ export default function DashboardSekolah() {
               Menu Hari Ini
             </h2>
           </div>
-
+ 
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
             <div className="flex flex-col md:flex-row">
               <div className="md:w-1/3 lg:w-1/4 h-52 md:h-auto overflow-hidden">
@@ -255,15 +335,15 @@ export default function DashboardSekolah() {
               </div>
             </div>
           </div>
-
+ 
           {/* Unggah Dokumentasi Menu */}
-          <div className="mb-8">
+          <div className="mb-4">
             <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-strong">
               <img src={iconUnggah} alt="Ikon Unggahan" className="w-5 h-5 object-contain" />
-              Unggahan Terbaru
+              Unggah Dokumentasi Menu
             </h2>
           </div>
-
+ 
           {/* Tombol Unggah Foto */}
           <div className="bg-white rounded-xl shadow p-6 mb-6">
             <input
@@ -312,7 +392,7 @@ export default function DashboardSekolah() {
               <span>Unggah Foto</span>
             </button>
           </div>
-
+ 
           {/* Catatan Pengiriman & Menu */}
           <div className="p-1 mb-1">
             <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-strong">
@@ -338,7 +418,7 @@ export default function DashboardSekolah() {
               </button>
             </div>
           </div>
-
+ 
           {/* Unggahan Terbaru */}
           <div className="mb-8">
             <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-strong">
@@ -359,11 +439,11 @@ export default function DashboardSekolah() {
               ))}
             </div>
           </div>
-
+ 
         </div>
       </div>
-
-      {/* FOOTER */}
+ 
+      {/* ── FOOTER ── */}
       <footer className="bg-white border-t mt-auto">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between py-5">
           <div className="flex items-center gap-2.5">
@@ -377,7 +457,8 @@ export default function DashboardSekolah() {
           </div>
         </div>
       </footer>
-
+ 
     </div>
   );
 }
+ 
