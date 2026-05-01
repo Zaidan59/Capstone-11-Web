@@ -1,5 +1,5 @@
-import { getSchools, getSPPG } from "../../../../services/mapsService";
-import { getResponseArray } from "../../../../utils/mapUtils";
+import { getSchools, getSPPG } from "../../../services/mapsService";
+import { getResponseArray } from "../../../utils/mapUtils";
 
 export const fallbackMapData = {
   kitchens: [

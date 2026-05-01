@@ -1,23 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import L from "leaflet";
-import { FiArrowRight, FiMapPin, FiSearch, FiUsers, FiX } from "react-icons/fi";
+import {
+  FiArrowRight,
+  FiMapPin,
+  FiUsers,
+  FiX,
+  FiExternalLink,
+} from "react-icons/fi";
 import { LuChefHat, LuGraduationCap, LuRoute } from "react-icons/lu";
-import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
-import { useMapsPage } from "../../hooks/useMapsPage";
-import NavBar from "../../components/common/NavBar";
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
+import { useMapsPage } from "../../../hooks/useMapsPage";
 
 const defaultCenter = [-6.225, 106.795];
-const filters = [
-  { value: "all", label: "Semua" },
-  { value: "sppg", label: "Dapur SPPG" },
-  { value: "school", label: "Sekolah" },
-];
 
 function getMarkerIcon(type, isSelected) {
   return L.divIcon({
     className: "",
     html: `<span class="map-dot map-dot-${type} ${isSelected ? "map-dot-selected" : ""}">${
-      type === "sppg" ? '<span class="map-dot-glyph">D</span>' : '<span class="map-dot-glyph">S</span>'
+      type === "sppg"
+        ? '<span class="map-dot-glyph">D</span>'
+        : '<span class="map-dot-glyph">S</span>'
     }</span>`,
     iconSize: type === "sppg" ? [28, 28] : [24, 24],
     iconAnchor: type === "sppg" ? [14, 14] : [12, 12],
@@ -69,84 +79,6 @@ function MapProjection({ selectedItem, onClear, onPointChange }) {
   return null;
 }
 
-function SearchBar({ items, onSelect }) {
-  const [query, setQuery] = useState("");
-
-  const results = useMemo(() => {
-    if (!query.trim()) return [];
-    const normalizedQuery = query.toLowerCase();
-
-    return items
-      .filter((item) => item.name.toLowerCase().includes(normalizedQuery))
-      .slice(0, 6);
-  }, [items, query]);
-
-  return (
-    <div className="absolute left-5 top-5 z-[500] w-[min(360px,calc(100vw-40px))]">
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.14)]">
-        <div className="flex h-12 items-center gap-3 px-4">
-          <FiSearch className="h-5 w-5 text-slate-400" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cari SPPG atau Sekolah"
-            className="h-full min-w-0 flex-1 text-sm font-medium text-slate-800 outline-none placeholder:text-slate-400"
-          />
-        </div>
-
-        {results.length > 0 ? (
-          <div className="border-t border-slate-100 p-2">
-            {results.map((item) => (
-              <button
-                key={`${item.type}-${item.id}`}
-                type="button"
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-slate-50"
-                onClick={() => {
-                  onSelect(item.type, item.id);
-                  setQuery(item.name);
-                }}
-              >
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    item.type === "sppg" ? "bg-emerald-500" : "bg-blue-500"
-                  }`}
-                />
-                <span>
-                  <span className="block text-sm font-bold text-slate-900">{item.name}</span>
-                  <span className="block text-xs font-medium text-slate-500">{item.location}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function FilterBar({ value, onChange }) {
-  return (
-    <div className="absolute left-[410px] top-5 z-[500] flex rounded-xl border border-slate-200 bg-white p-1 shadow-[0_12px_30px_rgba(15,23,42,0.14)]">
-      {filters.map((filter) => (
-        <button
-          key={filter.value}
-          type="button"
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition ${
-            value === filter.value
-              ? "bg-[#136DEC] text-white"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-          onClick={() => onChange(filter.value)}
-        >
-          {filter.value === "sppg" ? <span className="h-2 w-2 rounded-full bg-emerald-500" /> : null}
-          {filter.value === "school" ? <span className="h-2 w-2 rounded-full bg-blue-500" /> : null}
-          {filter.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function MarkerLayer({ items, selectedItem, onSelect }) {
   return (
     <>
@@ -188,12 +120,16 @@ function PopupCard({ item, point, onClose }) {
             <div className="min-w-0">
               <span
                 className={`inline-flex rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
-                  isSppg ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                  isSppg
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-blue-100 text-blue-700"
                 }`}
               >
                 {isSppg ? "Dapur SPPG" : "Sekolah"}
               </span>
-              <h2 className="mt-2 truncate text-lg font-black text-slate-950">{item.name}</h2>
+              <h2 className="mt-2 truncate text-lg font-black text-slate-950">
+                {item.name}
+              </h2>
             </div>
 
             <button
@@ -267,8 +203,12 @@ function Legend() {
 }
 
 export default function Maps() {
-  const { sppgItems: sppgData, schoolItems: schoolData, isLoading, isUsingFallback } = useMapsPage();
-  const [filter, setFilter] = useState("all");
+  const {
+    sppgItems: sppgData,
+    schoolItems: schoolData,
+    isLoading,
+    isUsingFallback,
+  } = useMapsPage();
   const [selected, setSelected] = useState(null);
   const [popupPoint, setPopupPoint] = useState(null);
 
@@ -288,25 +228,28 @@ export default function Maps() {
     () => schoolItems.filter(hasValidLatLng),
     [schoolItems],
   );
-  const allItems = useMemo(() => [...sppgItems, ...schoolItems], [schoolItems, sppgItems]);
+  const allItems = useMemo(
+    () => [...validSppgItems, ...validSchoolItems],
+    [validSppgItems, validSchoolItems],
+  );
 
   const selectedItem = useMemo(() => {
     if (!selected) return null;
-    return allItems.find((item) => item.type === selected.type && item.id === selected.id) ?? null;
+    return (
+      allItems.find(
+        (item) => item.type === selected.type && item.id === selected.id,
+      ) ?? null
+    );
   }, [allItems, selected]);
-
-  const visibleItems = useMemo(() => {
-    if (filter === "sppg") return validSppgItems;
-    if (filter === "school") return validSchoolItems;
-    return [...validSppgItems, ...validSchoolItems];
-  }, [filter, validSchoolItems, validSppgItems]);
 
   const routeLines = useMemo(() => {
     if (!selectedItem) return [];
 
     if (selectedItem.type === "sppg") {
       return selectedItem.schools
-        .map((schoolId) => validSchoolItems.find((school) => school.id === schoolId))
+        .map((schoolId) =>
+          validSchoolItems.find((school) => school.id === schoolId),
+        )
         .filter(Boolean)
         .map((school) => [getPosition(selectedItem), getPosition(school)]);
     }
@@ -327,48 +270,82 @@ export default function Maps() {
   }, []);
 
   return (
-    <>
-    <NavBar />
-    <main className="relative h-screen w-screen overflow-hidden bg-slate-950">
-      <MapContainer center={defaultCenter} zoom={12} zoomControl={false} className="h-full w-full">
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+    <section className="w-full py-16">
+      <div className="mx-auto max-w-7xl px-6 md:px-12 ">
+        <div className="mb-6 flex items-end justify-between">
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 md:text-3xl">
+              Peta Sebaran Dapur &amp; Sekolah
+            </h2>
+            <p className="mt-1 text-sm font-medium text-slate-500">
+              Pilih wilayah untuk melihat detail SPPG dan unit sekolah terdekat.
+            </p>
+          </div>
+          <Link
+            to="/maps"
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-[#136DEC] transition"
+          >
+            View Full Map
+            <FiExternalLink className="h-4 w-4" />
+          </Link>
+        </div>
 
-        <MapController selectedItem={selectedItem} />
-        <MapProjection selectedItem={selectedItem} onClear={clearSelection} onPointChange={setPopupPoint} />
+        <div className="relative h-[480px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgba(15,23,42,0.10)]">
+          <MapContainer
+            center={defaultCenter}
+            zoom={12}
+            zoomControl={false}
+            className="h-full w-full"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
 
-        {routeLines.map((positions, index) => (
-          <Polyline
-            key={index}
-            positions={positions}
-            pathOptions={{
-              color: "#136DEC",
-              weight: 4,
-              opacity: 0.85,
-            }}
+            <MapController selectedItem={selectedItem} />
+            <MapProjection
+              selectedItem={selectedItem}
+              onClear={clearSelection}
+              onPointChange={setPopupPoint}
+            />
+
+            {routeLines.map((positions, index) => (
+              <Polyline
+                key={index}
+                positions={positions}
+                pathOptions={{
+                  color: "#136DEC",
+                  weight: 4,
+                  opacity: 0.85,
+                }}
+              />
+            ))}
+
+            <MarkerLayer
+              items={allItems}
+              selectedItem={selectedItem}
+              onSelect={handleSelect}
+            />
+          </MapContainer>
+
+          <PopupCard
+            item={selectedItem}
+            point={popupPoint}
+            onClose={clearSelection}
           />
-        ))}
-
-        <MarkerLayer items={visibleItems} selectedItem={selectedItem} onSelect={handleSelect} />
-      </MapContainer>
-
-      <SearchBar items={allItems} onSelect={handleSelect} />
-      <FilterBar value={filter} onChange={setFilter} />
-      <PopupCard item={selectedItem} point={popupPoint} onClose={clearSelection} />
-      <Legend />
-      {isLoading ? (
-        <div className="absolute right-5 top-5 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-slate-700 shadow">
-          Memuat data peta...
+          <Legend />
+          {isLoading ? (
+            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-slate-700 shadow">
+              Memuat data peta...
+            </div>
+          ) : null}
+          {isUsingFallback ? (
+            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
+              Menampilkan data contoh
+            </div>
+          ) : null}
         </div>
-      ) : null}
-      {isUsingFallback ? (
-        <div className="absolute right-5 top-16 z-[500] rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
-          Menampilkan data contoh
-        </div>
-      ) : null}
-    </main>
-    </>
+      </div>
+    </section>
   );
 }

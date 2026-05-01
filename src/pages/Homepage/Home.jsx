@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import Hero from "./components/Hero";
 import About from "./components/About";
-import Maps from "./components/Map/Map";
+import Maps from "./components/Map";
 import DashboardPemantauan from "./components/DashboardPemantauan";
 import FAQ from "./components/FAQ";
 import Footer from "../../components/common/Footer";
