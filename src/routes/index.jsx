@@ -21,21 +21,27 @@ export default function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Auth Routes — outside Layout */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Dashboard Routes — outside Layout (use dashboard-specific navbar) */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard/sppg" element={<DashboardSPPG />} />
+          <Route path="/dashboard/sekolah" element={<DashboardSekolah />} />
+        </Route>
+
         <Route element={<Layout />}>
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/maps" element={<Maps />} />
           <Route path="/artikel" element={<Artikel />} />
           <Route path="/artikel/:id" element={<ArtikelDetail />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           <Route path="/profil/sppg/:id" element={<ProfilSPPG />} />
           <Route path="/profil/sekolah/:id" element={<ProfilSekolah />} />
           
-          {/* Protected Routes */}
+          {/* Protected Routes (that still use Layout navbar) */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard/sppg" element={<DashboardSPPG />} />
-            <Route path="/dashboard/sekolah" element={<DashboardSekolah />} />
             <Route path="/notification" element={<Notification />} />
           </Route>
         </Route>
