@@ -7,17 +7,18 @@ import iconTanggal from '../../assets/iconTanggal.png';
 import dokumMenu from '../../assets/dokumMenu.png';
 import catatanIcon from '../../assets/catatanIcon.png';
 import DefaultSekolah from '../../assets/defaultSekolah.png';
-import dokumMenu1 from '../../assets/dokumDefault1.png'; 
+import dokumMenu1 from '../../assets/dokumDefault1.png';
 import dokumMenu2 from '../../assets/dokumDefault2.png';
 import dokumMenu3 from '../../assets/dokumDefault3.png';
-// ─────────────────────────────────────────────
-// DEFAULT DATA (fallback jika API gagal)
-// ─────────────────────────────────────────────
+
+const STORAGE_KEY_DOCS  = 'simba_dokumentasi';
+const STORAGE_KEY_NOTES = 'simba_catatan';
+
 const DEFAULT_SEKOLAH = {
-  nama: 'SMP Negeri 12 Jakarta',
+  nama: 'SMP Negeri 115 Jakarta',
   foto: DefaultSekolah,
   status: 'Operasional Aktif',
-  alamat: 'Jl. Wijaya IX No.50 2, RT.2/RW.5, Melawai, Kec. Kby. Baru, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta 12160',
+  alamat: 'Jl. KH Abdullah Syafiei No. 8, RT 8/RW 2, Bukit Duri, Kec. Tebet, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta 12840',
   npsn: '4500',
   siswa: 450,
 };
@@ -42,25 +43,16 @@ const DEFAULT_MENU_HARIAN = [
 ];
 
 const DEFAULT_DOKUMENTASI = [
-  {
-    foto: dokumMenu1,
-    caption: 'Menu Diterima Jam 10:00 WIB',
-  },
-  {
-    foto: dokumMenu2,
-    caption: 'Quality Check Jam 09:45 WIB',
-  },
-  {
-    foto: dokumMenu3,
-    caption: 'Pengecekan Menu Jam 09:00 WIB',
-  },
+  { foto: dokumMenu1, fotoUrl: null, caption: 'Menu Diterima Jam 10:00 WIB' },
+  { foto: dokumMenu2, fotoUrl: null, caption: 'Quality Check Jam 09:45 WIB' },
+  { foto: dokumMenu3, fotoUrl: null, caption: 'Pengecekan Menu Jam 09:00 WIB' },
 ];
 
 const DEFAULT_NUTRISI = [
-  { lbl: 'KALORI', val: '650', unit: 'kcal' },
-  { lbl: 'PROTEIN', val: '28g', unit: 'g' },
-  { lbl: 'KARBOHIDRAT', val: '85g', unit: 'g' },
-  { lbl: 'LEMAK', val: '18g', unit: 'g' },
+  { lbl: 'KALORI',      val: '650', unit: 'kcal' },
+  { lbl: 'PROTEIN',     val: '28g', unit: 'g'    },
+  { lbl: 'KARBOHIDRAT', val: '85g', unit: 'g'    },
+  { lbl: 'LEMAK',       val: '18g', unit: 'g'    },
 ];
 
 const DEFAULT_CATATAN = [
@@ -78,9 +70,6 @@ const DEFAULT_CATATAN = [
   },
 ];
 
-// ─────────────────────────────────────────────
-// KOMPONEN UTAMA
-// ─────────────────────────────────────────────
 export default function ProfilSekolah() {
   const idSekolah = 1;
 
@@ -105,19 +94,57 @@ export default function ProfilSekolah() {
             fetch(`/api/sekolah/${idSekolah}/catatan`).then(r => r.json()),
           ]);
 
-        setSekolah(resSekolah.status         === 'fulfilled' ? resSekolah.value         : DEFAULT_SEKOLAH);
-        setSppg(resSppg.status               === 'fulfilled' ? resSppg.value            : DEFAULT_SPPG);
-        setMenuHarian(resMenu.status         === 'fulfilled' ? resMenu.value            : DEFAULT_MENU_HARIAN);
-        setDokumentasi(resDokumentasi.status === 'fulfilled' ? resDokumentasi.value     : DEFAULT_DOKUMENTASI);
-        setNutrisi(resNutrisi.status         === 'fulfilled' ? resNutrisi.value         : DEFAULT_NUTRISI);
-        setCatatan(resCatatan.status         === 'fulfilled' ? resCatatan.value         : DEFAULT_CATATAN);
+        setSekolah(resSekolah.status     === 'fulfilled' ? resSekolah.value     : DEFAULT_SEKOLAH);
+        setSppg(resSppg.status           === 'fulfilled' ? resSppg.value        : DEFAULT_SPPG);
+        setMenuHarian(resMenu.status     === 'fulfilled' ? resMenu.value        : DEFAULT_MENU_HARIAN);
+        setNutrisi(resNutrisi.status     === 'fulfilled' ? resNutrisi.value     : DEFAULT_NUTRISI);
+
+        // ── Dokumentasi: gabung localStorage di depan, max 3 tampil ──
+        const baseDokum = resDokumentasi.status === 'fulfilled'
+          ? resDokumentasi.value
+          : DEFAULT_DOKUMENTASI;
+        const savedDocs = localStorage.getItem(STORAGE_KEY_DOCS);
+        if (savedDocs) {
+          const parsed = JSON.parse(savedDocs);
+          // Ambil hanya 3 terbaru dari localStorage, sisanya dari default
+          const merged = [...parsed.slice(0, 3)];
+          setDokumentasi(merged);
+        } else {
+          setDokumentasi(baseDokum);
+        }
+
+        // ── Catatan: gabung localStorage di depan ──
+        const baseCatatan = resCatatan.status === 'fulfilled'
+          ? resCatatan.value
+          : DEFAULT_CATATAN;
+        const savedNotes = localStorage.getItem(STORAGE_KEY_NOTES);
+        if (savedNotes) {
+          const parsed = JSON.parse(savedNotes);
+          setDokumentasi(prev => prev); // no-op, just keep docs
+          setCatatan([...parsed, ...baseCatatan]);
+        } else {
+          setCatatan(baseCatatan);
+        }
+
       } catch {
         setSekolah(DEFAULT_SEKOLAH);
         setSppg(DEFAULT_SPPG);
         setMenuHarian(DEFAULT_MENU_HARIAN);
-        setDokumentasi(DEFAULT_DOKUMENTASI);
         setNutrisi(DEFAULT_NUTRISI);
-        setCatatan(DEFAULT_CATATAN);
+
+        const savedDocs = localStorage.getItem(STORAGE_KEY_DOCS);
+        if (savedDocs) {
+          setDokumentasi(JSON.parse(savedDocs).slice(0, 3));
+        } else {
+          setDokumentasi(DEFAULT_DOKUMENTASI);
+        }
+
+        const savedNotes = localStorage.getItem(STORAGE_KEY_NOTES);
+        if (savedNotes) {
+          setCatatan([...JSON.parse(savedNotes), ...DEFAULT_CATATAN]);
+        } else {
+          setCatatan(DEFAULT_CATATAN);
+        }
       } finally {
         setLoading(false);
       }
@@ -125,11 +152,6 @@ export default function ProfilSekolah() {
 
     fetchAll();
   }, [idSekolah]);
-
-  // Scroll ke atas saat component mount
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100">
@@ -180,7 +202,7 @@ export default function ProfilSekolah() {
               </div>
             </div>
 
-            {/* ── Grid Utama: Konten Kiri | Sidebar Kanan ── */}
+            {/* ── Grid Utama ── */}
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-3 items-start">
 
               {/* ── KOLOM KIRI ── */}
@@ -214,18 +236,17 @@ export default function ProfilSekolah() {
                   </div>
                 </div>
 
-                        {/* Dokumentasi Menu */}
+                {/* Dokumentasi Menu */}
                 <div className="rounded-2xl p-5">
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-3">
                     <img src={dokumMenu} alt="" />
                     Dokumentasi Menu
                   </h3>
                   <div className="grid grid-cols-3 gap-2">
-                    {dokumentasi.map((doc, i) => (
+                    {dokumentasi.slice(0, 3).map((doc, i) => (
                       <div key={i} className="relative rounded-xl overflow-hidden aspect-[4/3]">
                         <img
-                          // Properti .foto ini mengambil gambar dari array DEFAULT_DOKUMENTASI
-                          src={doc.foto} 
+                          src={doc.fotoUrl || doc.foto}
                           alt={doc.caption}
                           className="w-full h-full object-cover"
                         />
@@ -278,7 +299,6 @@ export default function ProfilSekolah() {
               {/* ── KOLOM KANAN (SIDEBAR) ── */}
               <div className="flex flex-col gap-3">
 
-                {/* SPPG Bersangkutan */}
                 {sppg && (
                   <div>
                     <p className="text-base font-bold text-gray-700 mb-2">SPPG Bersangkutan</p>
@@ -303,7 +323,6 @@ export default function ProfilSekolah() {
                   </div>
                 )}
 
-                {/* Informasi Nutrisi */}
                 <div className="rounded-2xl p-4">
                   <p className="text-[15px] font-bold text-gray-900 mb-3">Informasi Nutrisi (per makanan)</p>
                   <div className="bg-white grid grid-cols-2 gap-2">
@@ -317,7 +336,6 @@ export default function ProfilSekolah() {
                   </div>
                 </div>
 
-                {/* Info Transparansi */}
                 <div className="bg-gray-900 rounded-2xl p-4">
                   <p className="text-sm font-semibold text-white mb-2">Info Transparansi</p>
                   <p className="text-xs text-gray-400 leading-relaxed">

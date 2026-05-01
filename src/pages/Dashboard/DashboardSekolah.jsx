@@ -1,60 +1,187 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import iconSekolah from "../../assets/Icon_sekolah.png";
 import iconMap from "../../assets/Icon_map.png";
 import logo from "../../assets/Logo.png";
-import iconPin from '../../assets/icon.png';
 import iconUpload from '../../assets/upload_icon.png';
 import iconMenu from '../../assets/IconMenu.png';
 import iconUnggah from '../../assets/IconUnggah.png';
 import iconCatatan from '../../assets/iconCatatan.png';
 import iconUnggahanTerbaru from '../../assets/IconUnggahanTerbaru.png';
-import menuDefault from '../../assets/menuDefault.png';
+import menuDefault from '../../assets/MenuDefault.png';
+import menuDefault1 from '../../assets/UnggahanDefault1.png';
+import menuDefault2 from '../../assets/UnggahanDefault2.png';
+import menuDefault3 from '../../assets/UnggahanDefault3.png';
 import iconProfile from '../../assets/icon_profile.png';
 import { getSekolahById } from "../../services/sekolahService";
-import IconProfile from "../../assets/Icon_profile.png";
-
+import { useAuth } from '../../hooks/useAuth';
+ 
+const STORAGE_KEY_DOCS = 'simba_dokumentasi';
+const STORAGE_KEY_NOTES = 'simba_catatan';
+const MAX_DOCS = 20;          // batas maksimal dokumen tersimpan
+const RESIZE_MAX_PX = 800;    // resize foto agar hemat localStorage
+const RESIZE_QUALITY = 0.75;  // kualitas JPEG setelah resize
+ 
+const DEFAULT_DOCS = [
+  { foto: menuDefault1, fotoUrl: null, caption: 'Makanan Telah Diterima', time: '10:30 AM · Today' },
+  { foto: menuDefault2, fotoUrl: null, caption: 'Sesi Makan Kelas 4',     time: '11:45 AM · 22 Mei' },
+  { foto: menuDefault3, fotoUrl: null, caption: 'Verifikasi Bahan',        time: '09:15 AM · 22 Mei' },
+];
+ 
+function getNow() {
+  const now = new Date();
+  return now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB · Hari ini';
+}
+ 
+/**
+ * Resize gambar ke max RESIZE_MAX_PX lalu kembalikan sebagai base64 string.
+ * Menggunakan Canvas API agar ukuran file kecil dan aman disimpan di localStorage.
+ */
+function resizeImageToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+ 
+        // Hitung dimensi baru agar tidak melebihi RESIZE_MAX_PX
+        if (width > RESIZE_MAX_PX || height > RESIZE_MAX_PX) {
+          if (width > height) {
+            height = Math.round((height * RESIZE_MAX_PX) / width);
+            width = RESIZE_MAX_PX;
+          } else {
+            width = Math.round((width * RESIZE_MAX_PX) / height);
+            height = RESIZE_MAX_PX;
+          }
+        }
+ 
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', RESIZE_QUALITY));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+ 
 export default function DashboardSekolah() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [sekolah, setSekolah] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploadedFileUrl, setUploadedFileUrl] = useState(null); // base64 preview
+  const [keterangan, setKeterangan] = useState('');
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
   const [showUnggahSuccess, setShowUnggahSuccess] = useState(false);
-  const [catatan, setCatatan] = useState("");
+  const [showStorageError, setShowStorageError] = useState(false);
+  const [catatan, setCatatan] = useState('');
+  const [recentDocs, setRecentDocs] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_DOCS);
+      if (saved) return JSON.parse(saved).slice(0, 3);
+    } catch {
+      // abaikan parse error
+    }
+    return DEFAULT_DOCS;
+  });
   const fileInputRef = useRef(null);
-
+ 
   useEffect(() => {
     getSekolahById(1).then(res => setSekolah(res.data)).catch(() => {});
   }, []);
-
-  const handleFileChange = (e) => {
+ 
+  // ─── Pilih file → konversi ke base64 dengan resize ───────────────────────
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (!file) return;
+    try {
+      const base64 = await resizeImageToBase64(file);
       setUploadedFile(file);
-      setShowUploadSuccess(true);
-      setTimeout(() => setShowUploadSuccess(false), 2500);
+      setUploadedFileUrl(base64); // base64 aman untuk localStorage
+    } catch {
+      console.error('Gagal membaca gambar');
     }
   };
-
+ 
+  // ─── Unggah foto ke localStorage ─────────────────────────────────────────
   const handleUnggahFoto = () => {
-    if (uploadedFile) {
+    if (!uploadedFile) {
+      fileInputRef.current.click();
+      return;
+    }
+ 
+    const newDoc = {
+      foto: null,
+      fotoUrl: uploadedFileUrl,   // base64 — tetap ada setelah refresh
+      caption: keterangan || uploadedFile.name,
+      time: getNow(),
+    };
+ 
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_DOCS);
+      const existing = saved ? JSON.parse(saved) : DEFAULT_DOCS;
+      // Batasi jumlah dokumen agar localStorage tidak penuh
+      const updated = [newDoc, ...existing].slice(0, MAX_DOCS);
+      localStorage.setItem(STORAGE_KEY_DOCS, JSON.stringify(updated));
+      setRecentDocs(updated.slice(0, 3));
+ 
       setShowUploadSuccess(true);
       setTimeout(() => setShowUploadSuccess(false), 2500);
-    } else {
-      fileInputRef.current.click();
+    } catch (err) {
+      // localStorage penuh (QuotaExceededError)
+      console.error('localStorage penuh:', err);
+      setShowStorageError(true);
+      setTimeout(() => setShowStorageError(false), 3000);
     }
+ 
+    // Reset state
+    setUploadedFile(null);
+    setUploadedFileUrl(null);
+    setKeterangan('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
-
+ 
+  // ─── Unggah catatan ke localStorage ──────────────────────────────────────
   const handleUnggahCatatan = () => {
-    if (catatan.trim()) {
-      setShowUnggahSuccess(true);
-      setTimeout(() => setShowUnggahSuccess(false), 2500);
-      setCatatan("");
+    if (!catatan.trim()) return;
+ 
+    const newCatatan = {
+      type: 'success',
+      judul: catatan.trim(),
+      meta:
+        'Hari ini, pukul ' +
+        new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) +
+        ' WIB - Admin Sekolah',
+      kutipan: null,
+    };
+ 
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_NOTES);
+      const existing = saved ? JSON.parse(saved) : [];
+      const updated = [newCatatan, ...existing];
+      localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(updated));
+    } catch (err) {
+      console.error('localStorage penuh:', err);
     }
+ 
+    setShowUnggahSuccess(true);
+    setTimeout(() => setShowUnggahSuccess(false), 2500);
+    setCatatan('');
   };
-
+ 
+  const displayName = user?.name || user?.identifier || 'Pengguna Sekolah';
+ 
   return (
     <div className="bg-[#F3F4F6] min-h-screen flex flex-col">
-
-      {/* Modal Sukses Upload Foto */}
+ 
+      {/* ── Modal Sukses Upload Foto ── */}
       {showUploadSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center px-16 py-12 border-4 border-green-400 animate-fade-in">
@@ -67,8 +194,8 @@ export default function DashboardSekolah() {
           </div>
         </div>
       )}
-
-      {/* Modal Sukses Unggah Catatan */}
+ 
+      {/* ── Modal Sukses Unggah Catatan ── */}
       {showUnggahSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center px-16 py-12 border-4 border-green-400">
@@ -81,8 +208,23 @@ export default function DashboardSekolah() {
           </div>
         </div>
       )}
-
-         {/* NAVBAR */}
+ 
+      {/* ── Modal Error Storage Penuh ── */}
+      {showStorageError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+          <div className="bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center px-16 py-12 border-4 border-red-400">
+            <div className="w-20 h-20 rounded-full border-4 border-red-400 flex items-center justify-center mb-4">
+              <svg width="44" height="44" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="text-red-500">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <span className="text-red-500 font-bold text-2xl">Penyimpanan Penuh</span>
+            <span className="text-slate-500 text-sm mt-2 text-center">Hapus beberapa foto lama lalu coba lagi.</span>
+          </div>
+        </div>
+      )}
+ 
+      {/* ── NAVBAR ── */}
       <nav className="sticky top-0 z-40 bg-white shadow w-full">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-[52px]">
           <div className="flex items-center gap-2.5">
@@ -90,24 +232,28 @@ export default function DashboardSekolah() {
             <span className="font-bold text-[20px] text-[#1a2233] tracking-wide">SIMBA</span>
           </div>
           <div className="flex items-center gap-[18px]">
-            <button className="relative">
-              <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-700">
+            <button
+              className="relative"
+              onClick={() => navigate('/notification/sekolah')}
+              aria-label="Buka Notifikasi"
+            >
+              <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-700 hover:text-blue-600 transition-colors">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
               <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500" />
             </button>
-            <span className="font-medium text-[14px] text-gray-700">{user.name}</span>
+            <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
             <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer">
-             <img src={iconProfile} alt="" />
+              <img src={iconProfile} alt="" />
             </div>
           </div>
         </div>
       </nav>
-
-      {/* MAIN CONTENT */}
+ 
+      {/* ── MAIN CONTENT ── */}
       <div className="flex-1 w-full">
         <div className="max-w-6xl mx-auto py-8 px-6">
-
+ 
           {/* Header */}
           <div className="mb-6">
             <h1 className="font-bold text-[32px] md:text-[36px]">Dashboard Operasional Sekolah</h1>
@@ -118,7 +264,7 @@ export default function DashboardSekolah() {
               Senin, 25 Mei 2026
             </p>
           </div>
-
+ 
           {/* Card Sekolah */}
           <div className="bg-white rounded-xl shadow p-6 mb-6">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
@@ -136,9 +282,6 @@ export default function DashboardSekolah() {
                       Operational Aktif
                     </span>
                   </div>
-                  <button className="hidden sm:inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 transition-colors text-white shadow-md flex-shrink-0">
-                    <img src={iconPin} alt="Map" className="w-6 h-6 brightness-0 invert" />
-                  </button>
                 </div>
                 <div className="mt-4 text-sm text-slate-500 flex items-start gap-2">
                   <img src={iconMap} alt="Alamat" className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -151,80 +294,58 @@ export default function DashboardSekolah() {
                   <span>{sekolah ? sekolah.affiliatedKitchen || "SPPG Tebet Barat" : "SPPG Tebet Barat"}</span>
                 </div>
               </div>
-              <button className="inline-flex sm:hidden items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 transition-colors text-white shadow-md">
-                <img src={iconPin} alt="Map" className="w-6 h-6 brightness-0 invert" />
-              </button>
             </div>
           </div>
-
-        {/* Menu Hari Ini */}
-        <div className="p-1 mb-1">
-          <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-slate-800">
-            <img 
-              src={iconMenu} 
-              alt="Menu Icon" 
-              className="w-5 h-5 object-contain" 
-            />
-            Menu Hari Ini
-          </h2>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
-          <div className="flex flex-col md:flex-row">
-            {/* Sisi Kiri: Gambar Full Height */}
-            <div className="md:w-1/3 lg:w-1/4 h-52 md:h-auto overflow-hidden">
-              <img 
-                src={menuDefault} 
-                alt="menu" 
-                className="w-full h-full object-cover" 
-              />
-            </div>
-
-            {/* Sisi Kanan: Detail Konten */}
-            <div className="flex-1 p-6 md:p-8 flex flex-col justify-center">
-              <div className="mb-6">
-                <div className="text-[11px] md:text-xs text-blue-600 font-extrabold mb-2 tracking-widest uppercase">
-                  Makanan Utama
-                </div>
-                <h3 className="font-bold text-2xl md:text-3xl text-slate-900 mb-2">
-                  Nasi Goreng + Ayam Goreng
-                </h3>
-                <p className="text-slate-500 text-sm md:text-base font-medium">
-                  Tahu, Buah Pisang, Susu Kemasan
-                </p>
-              </div>
-
-              {/* Garis Pemisah & Info Nutrisi */}
-              <div className="pt-6 border-t border-slate-50 flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 bg-[#F0F7FF] border border-blue-100 rounded-xl py-4 px-6 text-center">
-                  <div className="text-blue-600 font-extrabold text-2xl">540</div>
-                  <div className="text-[13px] text-slate-500 font-medium">Calories (kcal)</div>
-                </div>
-                
-                <div className="flex-1 bg-[#F0F7FF] border border-blue-100 rounded-xl py-4 px-6 text-center">
-                  <div className="text-blue-600 font-extrabold text-2xl">25g</div>
-                  <div className="text-[13px] text-slate-500 font-medium">Protein</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-          {/* Unggah Dokumentasi Menu */}
-          <div className="mb-8">
-            <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-strong">
-              <img 
-                src={iconUnggah} 
-                alt="Ikon Unggahan" 
-                className="w-5 h-5 object-contain" 
-              />
-              Unggahan Terbaru
+ 
+          {/* Menu Hari Ini */}
+          <div className="p-1 mb-1">
+            <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-slate-800">
+              <img src={iconMenu} alt="Menu Icon" className="w-5 h-5 object-contain" />
+              Menu Hari Ini
             </h2>
           </div>
+ 
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
+            <div className="flex flex-col md:flex-row">
+              <div className="md:w-1/3 lg:w-1/4 h-52 md:h-auto overflow-hidden">
+                <img src={menuDefault} alt="menu" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex-1 p-6 md:p-8 flex flex-col justify-center">
+                <div className="mb-6">
+                  <div className="text-[11px] md:text-xs text-blue-600 font-extrabold mb-2 tracking-widest uppercase">
+                    Makanan Utama
+                  </div>
+                  <h3 className="font-bold text-2xl md:text-3xl text-slate-900 mb-2">
+                    Nasi Goreng + Ayam Goreng
+                  </h3>
+                  <p className="text-slate-500 text-sm md:text-base font-medium">
+                    Tahu, Buah Pisang, Susu Kemasan
+                  </p>
+                </div>
+                <div className="pt-6 border-t border-slate-50 flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1 bg-[#F0F7FF] border border-blue-100 rounded-xl py-4 px-6 text-center">
+                    <div className="text-blue-600 font-extrabold text-2xl">540</div>
+                    <div className="text-[13px] text-slate-500 font-medium">Calories (kcal)</div>
+                  </div>
+                  <div className="flex-1 bg-[#F0F7FF] border border-blue-100 rounded-xl py-4 px-6 text-center">
+                    <div className="text-blue-600 font-extrabold text-2xl">25g</div>
+                    <div className="text-[13px] text-slate-500 font-medium">Protein</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+ 
+          {/* Unggah Dokumentasi Menu */}
+          <div className="mb-4">
+            <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-strong">
+              <img src={iconUnggah} alt="Ikon Unggahan" className="w-5 h-5 object-contain" />
+              Unggah Dokumentasi Menu
+            </h2>
+          </div>
+ 
           {/* Tombol Unggah Foto */}
-
-         <div className="bg-white rounded-xl shadow p-6 mb-6">
-            {/* Input file hidden */}
+          <div className="bg-white rounded-xl shadow p-6 mb-6">
             <input
               ref={fileInputRef}
               type="file"
@@ -232,13 +353,15 @@ export default function DashboardSekolah() {
               className="hidden"
               onChange={handleFileChange}
             />
-
-            {/* Drop zone - klik buka file manager */}
-           <div
+            <div
               onClick={() => fileInputRef.current.click()}
               className="border-2 border-dashed border-blue-200 rounded-xl p-10 flex flex-col items-center justify-center min-h-[150px] mb-4 bg-blue-50/30 cursor-pointer hover:bg-blue-100/40 hover:border-blue-400 transition-all"
             >
-              <img src={iconUpload} alt="Upload" className="w-12 h-12 mb-3 opacity-40" />
+              {uploadedFileUrl ? (
+                <img src={uploadedFileUrl} alt="preview" className="h-24 object-contain rounded-lg mb-2" />
+              ) : (
+                <img src={iconUpload} alt="Upload" className="w-12 h-12 mb-3 opacity-40" />
+              )}
               {uploadedFile ? (
                 <span className="text-blue-600 font-medium text-sm">{uploadedFile.name}</span>
               ) : (
@@ -247,29 +370,21 @@ export default function DashboardSekolah() {
                 </span>
               )}
             </div>
-
             <div className="mb-3">
               <label className="block text-sm font-medium text-slate-700 mb-1">Keterangan</label>
-              <input type="text" className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="cth: Pembagian makanan untuk siswa kelas 3" />
+              <input
+                type="text"
+                value={keterangan}
+                onChange={(e) => setKeterangan(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                placeholder="cth: Pembagian makanan untuk siswa kelas 3"
+              />
             </div>
-
-          {/* Tombol Unggah Foto */}
             <button
               onClick={handleUnggahFoto}
               className="w-full bg-blue-600 hover:bg-white hover:text-blue-600 hover:border hover:border-blue-600 text-white py-3 rounded-lg font-semibold text-base mt-1 transition-all border border-transparent flex items-center justify-center gap-2"
             >
-              {/* Menggunakan SVG untuk ikon upload yang sesuai gambar kedua */}
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="flex-shrink-0"
-              >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
@@ -277,19 +392,15 @@ export default function DashboardSekolah() {
               <span>Unggah Foto</span>
             </button>
           </div>
-
+ 
           {/* Catatan Pengiriman & Menu */}
-            <div className="p-1 mb-1">
+          <div className="p-1 mb-1">
             <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-strong">
-               <img 
-                src={iconCatatan} 
-                alt="Ikon Unggahan" 
-                className="w-5 h-5 object-contain" 
-              />
+              <img src={iconCatatan} alt="Ikon Catatan" className="w-5 h-5 object-contain" />
               Catatan Pengiriman & Menu
             </h2>
-            </div>
-            <div className="bg-white rounded-xl shadow p-6 mb-6">
+          </div>
+          <div className="bg-white rounded-xl shadow p-6 mb-6">
             <label className="block text-sm font-medium text-slate-700 mb-1">Saran dan Kritik</label>
             <textarea
               rows={4}
@@ -307,37 +418,32 @@ export default function DashboardSekolah() {
               </button>
             </div>
           </div>
-
+ 
           {/* Unggahan Terbaru */}
-          
           <div className="mb-8">
             <h2 className="font-semibold mb-4 text-[20px] flex items-center gap-2 text-strong">
-               <img 
-                src={iconUnggahanTerbaru} 
-                alt="Ikon Unggahan" 
-                className="w-5 h-5 object-contain" 
-              />
+              <img src={iconUnggahanTerbaru} alt="Ikon Unggahan Terbaru" className="w-5 h-5 object-contain" />
               Unggahan Terbaru
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[
-                { src: "", label: "Makanan Telah Diterima", time: "10:30 AM · Today" },
-                { src: "", label: "Sesi Makan Kelas 4", time: "11:45 AM · 22 Mei" },
-                { src: "", label: "Verifikasi Bahan", time: "09:15 AM · 22 Mei" },
-              ].map((item, i) => (
+              {recentDocs.map((item, i) => (
                 <div key={i} className="bg-white rounded-xl shadow p-3 flex flex-col items-center">
-                  <img src={item.src} alt={item.label} className="w-full h-40 object-cover rounded-lg mb-3" />
-                  <div className="font-semibold text-sm">{item.label}</div>
+                  <img
+                    src={item.fotoUrl || item.foto}
+                    alt={item.caption}
+                    className="w-full h-40 object-cover rounded-lg mb-3"
+                  />
+                  <div className="font-semibold text-sm">{item.caption}</div>
                   <div className="text-xs text-slate-500 mt-0.5">{item.time}</div>
                 </div>
               ))}
             </div>
           </div>
-
+ 
         </div>
       </div>
-
-      {/* FOOTER */}
+ 
+      {/* ── FOOTER ── */}
       <footer className="bg-white border-t mt-auto">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between py-5">
           <div className="flex items-center gap-2.5">
@@ -351,7 +457,8 @@ export default function DashboardSekolah() {
           </div>
         </div>
       </footer>
-
+ 
     </div>
   );
 }
+ 
