@@ -29,12 +29,11 @@ export default function AppRoutes() {
         <Route path="/register" element={<Register />} />
         <Route path="/profil/sppg/:id" element={<ProfilSPPG />} />
         <Route path="/profil/sekolah/:id" element={<ProfilSekolah />} />
-        <Route path="/dashboard/sppg" element={<DashboardSPPG />} />
-        
+      
         {/* Protected Routes — harus login dulu */}
         <Route element={<ProtectedRoute />}>
-          
-          <Route path="/dashboard/sekolah" element={<DashboardSekolah />} />
+          <Route path="/dashboard/sppg" element={<DashboardSPPG />} />
+           <Route path="/dashboard/sekolah" element={<DashboardSekolah />} />
           <Route path="/notification" element={<Notification />} />
         </Route>
       </Routes>
