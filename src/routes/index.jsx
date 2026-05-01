@@ -5,7 +5,7 @@ import Layout from '../components/common/Layout'
 // Public Pages
 import Home from '../pages/Homepage/Home'
 import Maps from '../pages/Maps/Maps'
-import Artikel from '../pages/Artikel/Artikel'
+import ArtikelList from '../pages/Artikel/ArtikelList'
 import ArtikelDetail from '../pages/Artikel/ArtikelDetail'
 import Login from '../pages/Auth/Login'
 import Register from '../pages/Auth/Register'
@@ -35,7 +35,7 @@ export default function AppRoutes() {
           {/* Public Routes */}
           <Route path="/" element={<Home />} />
           <Route path="/maps" element={<Maps />} />
-          <Route path="/artikel" element={<Artikel />} />
+          <Route path="/artikel" element={<ArtikelList />} />
           <Route path="/artikel/:id" element={<ArtikelDetail />} />
           <Route path="/profil/sppg/:id" element={<ProfilSPPG />} />
           <Route path="/profil/sekolah/:id" element={<ProfilSekolah />} />
