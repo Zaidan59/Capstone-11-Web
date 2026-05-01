@@ -11,9 +11,10 @@ import iconUnggahanTerbaru from '../../assets/IconUnggahanTerbaru.png';
 import menuDefault from '../../assets/menuDefault.png';
 import iconProfile from '../../assets/icon_profile.png';
 import { getSekolahById } from "../../services/sekolahService";
-import IconProfile from "../../assets/Icon_profile.png";
+import { useAuth } from '../../hooks/useAuth';
 
 export default function DashboardSekolah() {
+  const { user } = useAuth();
   const [sekolah, setSekolah] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
@@ -51,6 +52,8 @@ export default function DashboardSekolah() {
     }
   };
 
+  const displayName = user?.name || user?.identifier || 'Pengguna Sekolah';
+
   return (
     <div className="bg-[#F3F4F6] min-h-screen flex flex-col">
 
@@ -83,27 +86,6 @@ export default function DashboardSekolah() {
       )}
 
       {/* NAVBAR */}
-            <nav className="sticky top-0 z-40 bg-white shadow w-full">
-              <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-[52px]">
-                <div className="flex items-center gap-2.5">
-                  <img src={logo} alt="SIMBA Logo" className="w-9 h-9" />
-                  <span className="font-bold text-[20px] text-[#1a2233] tracking-wide">SIMBA</span>
-                </div>
-                <div className="flex items-center gap-[18px]">
-                  <button className="relative">
-                    <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-700">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500" />
-                  </button>
-                  <span className="font-medium text-[14px] text-gray-700">{user.name}</span>
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center cursor-pointer overflow-hidden">
-                    <img src={IconProfile} alt="Profile" className="w-full h-full object-cover" />
-                  </div>
-                </div>
-              </div>
-            </nav>
-         {/* NAVBAR */}
       <nav className="sticky top-0 z-40 bg-white shadow w-full">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-[52px]">
           <div className="flex items-center gap-2.5">
@@ -117,7 +99,7 @@ export default function DashboardSekolah() {
               </svg>
               <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500" />
             </button>
-            <span className="font-medium text-[14px] text-gray-700">{user.name}</span>
+            <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
             <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer">
              <img src={iconProfile} alt="" />
             </div>
