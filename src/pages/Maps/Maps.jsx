@@ -3,82 +3,7 @@ import L from "leaflet";
 import { FiArrowRight, FiMapPin, FiSearch, FiUsers, FiX } from "react-icons/fi";
 import { LuChefHat, LuGraduationCap, LuRoute } from "react-icons/lu";
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
-
-const sppgData = [
-  {
-    id: "sppg-kebayoran",
-    name: "SPPG Kebayoran Baru",
-    location: "Jakarta Selatan, DKJ Jakarta",
-    info: "Melayani 2 SD, 2 SMP, dan 1 SMA",
-    capacity: "Kapasitas: 3,000 MBG/hari",
-    lat: -6.2447,
-    lng: 106.7997,
-    schools: ["school-01", "school-02", "school-03"],
-  },
-  {
-    id: "sppg-srengseng",
-    name: "SPPG Srengseng",
-    location: "Jakarta Barat, DKJ Jakarta",
-    info: "Melayani 2 SD dan 1 SMP",
-    capacity: "Kapasitas: 3,000 MBG/hari",
-    lat: -6.2105,
-    lng: 106.7599,
-    schools: ["school-04", "school-05"],
-  },
-];
-
-const schoolData = [
-  {
-    id: "school-01",
-    name: "SDN Kebayoran 01",
-    location: "Jakarta Selatan, DKJ Jakarta",
-    info: "Mitra distribusi SPPG Kebayoran Baru",
-    capacity: "Jumlah siswa: 420 siswa",
-    lat: -6.2365,
-    lng: 106.7893,
-    sppgId: "sppg-kebayoran",
-  },
-  {
-    id: "school-02",
-    name: "SMPN Kebayoran 03",
-    location: "Jakarta Selatan, DKJ Jakarta",
-    info: "Mitra distribusi SPPG Kebayoran Baru",
-    capacity: "Jumlah siswa: 510 siswa",
-    lat: -6.2552,
-    lng: 106.8126,
-    sppgId: "sppg-kebayoran",
-  },
-  {
-    id: "school-03",
-    name: "SMAN Tebet 05",
-    location: "Jakarta Selatan, DKJ Jakarta",
-    info: "Mitra distribusi SPPG Kebayoran Baru",
-    capacity: "Jumlah siswa: 610 siswa",
-    lat: -6.2292,
-    lng: 106.8324,
-    sppgId: "sppg-kebayoran",
-  },
-  {
-    id: "school-04",
-    name: "SDN Srengseng 11",
-    location: "Jakarta Barat, DKJ Jakarta",
-    info: "Mitra distribusi SPPG Srengseng",
-    capacity: "Jumlah siswa: 398 siswa",
-    lat: -6.1988,
-    lng: 106.7515,
-    sppgId: "sppg-srengseng",
-  },
-  {
-    id: "school-05",
-    name: "SMPN Srengseng 02",
-    location: "Jakarta Barat, DKJ Jakarta",
-    info: "Mitra distribusi SPPG Srengseng",
-    capacity: "Jumlah siswa: 452 siswa",
-    lat: -6.2217,
-    lng: 106.7734,
-    sppgId: "sppg-srengseng",
-  },
-];
+import { useMapsPage } from "../../hooks/useMapsPage";
 
 const defaultCenter = [-6.225, 106.795];
 const filters = [
@@ -98,6 +23,9 @@ function getMarkerIcon(type, isSelected) {
   });
 }
 
+const hasValidLatLng = (item) =>
+  Number.isFinite(item?.lat) && Number.isFinite(item?.lng);
+
 function getPosition(item) {
   return [item.lat, item.lng];
 }
@@ -106,7 +34,7 @@ function MapController({ selectedItem }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!selectedItem) return;
+    if (!selectedItem || !hasValidLatLng(selectedItem)) return;
     map.flyTo(getPosition(selectedItem), 14, { duration: 0.65 });
   }, [map, selectedItem]);
 
@@ -117,7 +45,7 @@ function MapProjection({ selectedItem, onClear, onPointChange }) {
   const map = useMap();
 
   const updatePoint = useCallback(() => {
-    if (!selectedItem) {
+    if (!selectedItem || !hasValidLatLng(selectedItem)) {
       onPointChange(null);
       return;
     }
@@ -338,12 +266,27 @@ function Legend() {
 }
 
 export default function Maps() {
+  const { sppgItems: sppgData, schoolItems: schoolData, isLoading, isUsingFallback } = useMapsPage();
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState(null);
   const [popupPoint, setPopupPoint] = useState(null);
 
-  const sppgItems = useMemo(() => sppgData.map((item) => ({ ...item, type: "sppg" })), []);
-  const schoolItems = useMemo(() => schoolData.map((item) => ({ ...item, type: "school" })), []);
+  const sppgItems = useMemo(
+    () => sppgData.map((item) => ({ ...item, type: "sppg" })),
+    [sppgData],
+  );
+  const schoolItems = useMemo(
+    () => schoolData.map((item) => ({ ...item, type: "school" })),
+    [schoolData],
+  );
+  const validSppgItems = useMemo(
+    () => sppgItems.filter(hasValidLatLng),
+    [sppgItems],
+  );
+  const validSchoolItems = useMemo(
+    () => schoolItems.filter(hasValidLatLng),
+    [schoolItems],
+  );
   const allItems = useMemo(() => [...sppgItems, ...schoolItems], [schoolItems, sppgItems]);
 
   const selectedItem = useMemo(() => {
@@ -352,24 +295,26 @@ export default function Maps() {
   }, [allItems, selected]);
 
   const visibleItems = useMemo(() => {
-    if (filter === "sppg") return sppgItems;
-    if (filter === "school") return schoolItems;
-    return allItems;
-  }, [allItems, filter, schoolItems, sppgItems]);
+    if (filter === "sppg") return validSppgItems;
+    if (filter === "school") return validSchoolItems;
+    return [...validSppgItems, ...validSchoolItems];
+  }, [filter, validSchoolItems, validSppgItems]);
 
   const routeLines = useMemo(() => {
     if (!selectedItem) return [];
 
     if (selectedItem.type === "sppg") {
       return selectedItem.schools
-        .map((schoolId) => schoolItems.find((school) => school.id === schoolId))
+        .map((schoolId) => validSchoolItems.find((school) => school.id === schoolId))
         .filter(Boolean)
         .map((school) => [getPosition(selectedItem), getPosition(school)]);
     }
 
-    const sppg = sppgItems.find((item) => item.id === selectedItem.sppgId);
-    return sppg ? [[getPosition(sppg), getPosition(selectedItem)]] : [];
-  }, [schoolItems, selectedItem, sppgItems]);
+    const sppg = validSppgItems.find((item) => item.id === selectedItem.sppgId);
+    return sppg && hasValidLatLng(selectedItem)
+      ? [[getPosition(sppg), getPosition(selectedItem)]]
+      : [];
+  }, [selectedItem, validSchoolItems, validSppgItems]);
 
   const handleSelect = (type, id) => {
     setSelected({ type, id });
@@ -410,6 +355,16 @@ export default function Maps() {
       <FilterBar value={filter} onChange={setFilter} />
       <PopupCard item={selectedItem} point={popupPoint} onClose={clearSelection} />
       <Legend />
+      {isLoading ? (
+        <div className="absolute right-5 top-5 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-slate-700 shadow">
+          Memuat data peta...
+        </div>
+      ) : null}
+      {isUsingFallback ? (
+        <div className="absolute right-5 top-16 z-[500] rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
+          Menampilkan data contoh
+        </div>
+      ) : null}
     </main>
   );
 }

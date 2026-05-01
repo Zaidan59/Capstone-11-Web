@@ -1,329 +1,303 @@
-import { useMemo } from "react";
-import { MapContainer, TileLayer, CircleMarker, Polyline, Popup, useMap } from "react-leaflet";
-import { useHomepageMap } from "../../../hooks/useHomepageMap";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import L from "leaflet";
+import { FiArrowRight, FiMapPin, FiUsers, FiX, FiExternalLink } from "react-icons/fi";
+import { LuChefHat, LuGraduationCap, LuRoute } from "react-icons/lu";
+import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { useMapsPage } from "../../../hooks/useMapsPage";
 
-const Maps = () => {
-  const { mapData, isLoading, isUsingFallback } = useHomepageMap();
-  const kitchens = useMemo(() => mapData?.kitchens ?? [], [mapData]);
-  const schools = useMemo(() => mapData?.schools ?? [], [mapData]);
-  const links = useMemo(() => mapData?.links ?? [], [mapData]);
+const defaultCenter = [-6.225, 106.795];
 
-  const validKitchens = useMemo(
-    () => kitchens.filter((item) => Number.isFinite(item?.lat) && Number.isFinite(item?.lng)),
-    [kitchens],
+function getMarkerIcon(type, isSelected) {
+  return L.divIcon({
+    className: "",
+    html: `<span class="map-dot map-dot-${type} ${isSelected ? "map-dot-selected" : ""}">${
+      type === "sppg" ? '<span class="map-dot-glyph">D</span>' : '<span class="map-dot-glyph">S</span>'
+    }</span>`,
+    iconSize: type === "sppg" ? [28, 28] : [24, 24],
+    iconAnchor: type === "sppg" ? [14, 14] : [12, 12],
+  });
+}
+
+const hasValidLatLng = (item) =>
+  Number.isFinite(item?.lat) && Number.isFinite(item?.lng);
+
+function getPosition(item) {
+  return [item.lat, item.lng];
+}
+
+function MapController({ selectedItem }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedItem || !hasValidLatLng(selectedItem)) return;
+    map.flyTo(getPosition(selectedItem), 14, { duration: 0.65 });
+  }, [map, selectedItem]);
+
+  return null;
+}
+
+function MapProjection({ selectedItem, onClear, onPointChange }) {
+  const map = useMap();
+
+  const updatePoint = useCallback(() => {
+    if (!selectedItem || !hasValidLatLng(selectedItem)) {
+      onPointChange(null);
+      return;
+    }
+
+    const point = map.latLngToContainerPoint(getPosition(selectedItem));
+    onPointChange({ x: point.x, y: point.y });
+  }, [map, onPointChange, selectedItem]);
+
+  useEffect(() => {
+    updatePoint();
+  }, [updatePoint]);
+
+  useMapEvents({
+    click: onClear,
+    move: updatePoint,
+    zoom: updatePoint,
+    resize: updatePoint,
+  });
+
+  return null;
+}
+
+function MarkerLayer({ items, selectedItem, onSelect }) {
+  return (
+    <>
+      {items.map((item) => (
+        <Marker
+          key={item.id}
+          position={getPosition(item)}
+          icon={getMarkerIcon(item.type, selectedItem?.id === item.id)}
+          eventHandlers={{
+            click: (event) => {
+              event.originalEvent?.stopPropagation?.();
+              onSelect(item.type, item.id);
+            },
+          }}
+        />
+      ))}
+    </>
   );
+}
 
-  const validSchools = useMemo(
-    () => schools.filter((item) => Number.isFinite(item?.lat) && Number.isFinite(item?.lng)),
-    [schools],
-  );
+function PopupCard({ item, point, onClose }) {
+  if (!item || !point) return null;
 
-  const mapPoints = useMemo(
-    () =>
-      [...validKitchens, ...validSchools].map((item) => ({
-        lat: item.lat,
-        lng: item.lng,
-      })),
-    [validKitchens, validSchools],
-  );
-
-  const mapCenter = mapPoints.length > 0
-    ? [mapPoints[0].lat, mapPoints[0].lng]
-    : [-6.2, 106.8];
-
-  const linkLines = useMemo(() => {
-    if (!links.length) return [];
-
-    const kitchenById = new Map(validKitchens.map((item) => [String(item.id), item]));
-    const schoolById = new Map(validSchools.map((item) => [String(item.id), item]));
-
-    return links
-      .map((link) => {
-        const kitchen = kitchenById.get(String(link.kitchenId));
-        const school = schoolById.get(String(link.schoolId));
-
-        if (!kitchen || !school) return null;
-        if (!Number.isFinite(kitchen.lat) || !Number.isFinite(kitchen.lng)) return null;
-        if (!Number.isFinite(school.lat) || !Number.isFinite(school.lng)) return null;
-
-        return [
-          [kitchen.lat, kitchen.lng],
-          [school.lat, school.lng],
-        ];
-      })
-      .filter(Boolean);
-  }, [validKitchens, validSchools, links]);
-
-  const popupImage =
-    "https://images.unsplash.com/photo-1502005097973-6a7082348e28?auto=format&fit=crop&w=900&q=80";
-
-  const PopupCloseButton = () => {
-    const map = useMap();
-
-    return (
-      <button
-        type="button"
-        className="absolute right-5 top-5 text-slate-400 transition hover:text-slate-600"
-        aria-label="Tutup popup"
-        onClick={() => map.closePopup()}
-      >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M6 6L18 18M18 6L6 18"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
-    );
-  };
+  const isSppg = item.type === "sppg";
+  const profileLabel = isSppg ? "Lihat Profil SPPG" : "Lihat Profil Sekolah";
 
   return (
-    <section className="bg-slate-50 py-12">
-      <div className="mx-auto w-full max-w-[1280px] px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="text-3xl font-bold text-slate-900 md:text-4xl">Peta Sebaran Dapur &amp; Sekolah</h2>
-            <p className="mt-2 text-base text-slate-600">
-              Pilih wilayah untuk melihat detail SPPG dan unit sekolah terdaftar.
-            </p>
-          </div>
-
-          <a
-            href="/peta"
-            className="inline-flex w-fit items-center gap-2 border-b-2 border-[#136DEC] pb-1 text-base font-bold text-[#136DEC]"
-          >
-            View Full Map
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M2 18C1.45 18 0.979167 17.8042 0.5875 17.4125C0.195833 17.0208 0 16.55 0 16V2C0 1.45 0.195833 0.979167 0.5875 0.5875C0.979167 0.195833 1.45 0 2 0H9V2H2V16H16V9H18V16C18 16.55 17.8042 17.0208 17.4125 17.4125C17.0208 17.8042 16.55 18 16 18H2ZM6.7 12.7L5.3 11.3L14.6 2H11V0H18V7H16V3.4L6.7 12.7Z"
-                fill="#136DEC"
-              />
-            </svg>
-          </a>
+    <article
+      className="pointer-events-auto absolute z-[650] w-[340px] -translate-x-1/2 -translate-y-[calc(100%+24px)] overflow-visible rounded-xl bg-white shadow-[0_18px_40px_rgba(15,23,42,0.22)]"
+      style={{ left: point.x, top: point.y }}
+    >
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="h-[128px] bg-[linear-gradient(135deg,#f8f6ef_0%,#e7dac8_50%,#c7b59c_100%)]">
+          <div className="h-full w-full bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_36%)]" />
         </div>
 
-        <div className="relative overflow-hidden rounded-3xl border border-slate-300 bg-slate-100">
-          <div className="relative h-[560px] isolate">
-            <MapContainer
-              center={mapCenter}
-              zoom={10}
-              scrollWheelZoom={false}
-              className="h-full w-full"
+        <div className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <span
+                className={`inline-flex rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide ${
+                  isSppg ? "bg-emerald-100 text-emerald-700" : "bg-blue-100 text-blue-700"
+                }`}
+              >
+                {isSppg ? "Dapur SPPG" : "Sekolah"}
+              </span>
+              <h2 className="mt-2 truncate text-lg font-black text-slate-950">{item.name}</h2>
+            </div>
+
+            <button
+              type="button"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Tutup detail"
+              onClick={onClose}
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+              <FiX className="h-5 w-5" />
+            </button>
+          </div>
 
-              {linkLines.map((line, index) => (
-                <Polyline
-                  key={`link-${index}`}
-                  positions={line}
-                  pathOptions={{ color: "#60A5FA", weight: 2, opacity: 0.6 }}
-                />
-              ))}
-
-              {validSchools.map((school) => (
-                <CircleMarker
-                  key={school.id}
-                  center={[school.lat, school.lng]}
-                  radius={6}
-                  pathOptions={{ color: "#2563EB", fillColor: "#3B82F6", fillOpacity: 0.9 }}
-                >
-                  <Popup closeButton={false}  autoPan>
-                    <div className="w-[300px] bg-white shadow-[0_24px_50px_rgba(15,23,42,0.18)]">
-                      <div
-                        className="h-[140px] w-full bg-cover bg-center"
-                        style={{ backgroundImage: `url(${popupImage})` }}
-                      />
-                      <div className="relative space-y-3 pl-6 pr-8 pb-5 pt-4">
-                        <PopupCloseButton />
-                        <span className="inline-flex rounded-lg bg-blue-100 px-3 py-1 text-[12px] font-bold uppercase text-blue-700">
-                          Sekolah
-                        </span>
-                        <p className="text-[22px] font-bold text-slate-900">
-                          {school?.name ?? "Data sekolah belum tersedia"}
-                        </p>
-                        <ul className="space-y-2 text-sm font-medium text-slate-600">
-                          <li className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path
-                                  d="M12 21s-6-5.1-6-10a6 6 0 1112 0c0 4.9-6 10-6 10z"
-                                  stroke="currentColor"
-                                  strokeWidth="1.6"
-                                />
-                                <circle cx="12" cy="11" r="2.5" stroke="currentColor" strokeWidth="1.6" />
-                              </svg>
-                            </span>
-                            {school?.city ?? "Wilayah belum tersedia"}
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path
-                                  d="M4 10l8-5 8 5-8 5-8-5z"
-                                  stroke="currentColor"
-                                  strokeWidth="1.6"
-                                />
-                                <path
-                                  d="M4 10v6l8 5 8-5v-6"
-                                  stroke="currentColor"
-                                  strokeWidth="1.6"
-                                />
-                              </svg>
-                            </span>
-                            Jenjang: {school?.level ?? "Belum tersedia"}
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path
-                                  d="M6 9h12M6 15h12M4 6h16v12H4z"
-                                  stroke="currentColor"
-                                  strokeWidth="1.6"
-                                />
-                              </svg>
-                            </span>
-                            Jumlah siswa: {school?.students ?? "Belum tersedia"}
-                          </li>
-                        </ul>
-                        <button
-                          type="button"
-                          className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#136DEC] py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(19,109,236,0.3)]"
-                        >
-                          Lihat Profil Sekolah
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path
-                              d="M5 12h14M13 6l6 6-6 6"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              ))}
-
-              {validKitchens.map((kitchen) => (
-                <CircleMarker
-                  key={kitchen.id}
-                  center={[kitchen.lat, kitchen.lng]}
-                  radius={7}
-                  pathOptions={{ color: "#10B981", fillColor: "#34D399", fillOpacity: 0.9 }}
-                >
-                  <Popup closeButton={false} offset={[0, 0]} autoPan>
-                    <div className="w-[300px] rounded-[22px] bg-white shadow-[0_24px_50px_rgba(15,23,42,0.18)]">
-                      <div
-                        className="h-[140px] w-full bg-cover bg-center"
-                        style={{ backgroundImage: `url(${popupImage})` }}
-                      />
-                      <div className="relative space-y-3 pl-6 pr-8 pb-5 pt-4">
-                        <PopupCloseButton />
-                        <span className="inline-flex rounded-lg bg-[#e4f8e1] px-3 py-1 text-[12px] font-bold uppercase text-[#2b7d20]">
-                          Dapur SPPG
-                        </span>
-                        <p className="text-[22px] font-bold text-slate-900">
-                          {kitchen?.name ?? "Data SPPG belum tersedia"}
-                        </p>
-                        <ul className="space-y-2 text-sm font-medium text-slate-600">
-                          <li className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path
-                                  d="M12 21s-6-5.1-6-10a6 6 0 1112 0c0 4.9-6 10-6 10z"
-                                  stroke="currentColor"
-                                  strokeWidth="1.6"
-                                />
-                                <circle cx="12" cy="11" r="2.5" stroke="currentColor" strokeWidth="1.6" />
-                              </svg>
-                            </span>
-                            {kitchen?.city ?? "Wilayah belum tersedia"}
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path
-                                  d="M5 10h14M7 10c0-3 2-5 5-5s5 2 5 5M7 10v6a2 2 0 002 2h6a2 2 0 002-2v-6"
-                                  stroke="currentColor"
-                                  strokeWidth="1.6"
-                                  strokeLinecap="round"
-                                />
-                              </svg>
-                            </span>
-                            {kitchen?.coverage ?? "Cakupan layanan belum tersedia"}
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                                <path
-                                  d="M4 7h16M6 7v10a2 2 0 002 2h8a2 2 0 002-2V7"
-                                  stroke="currentColor"
-                                  strokeWidth="1.6"
-                                  strokeLinecap="round"
-                                />
-                                <path
-                                  d="M9 11h6M9 15h6"
-                                  stroke="currentColor"
-                                  strokeWidth="1.6"
-                                  strokeLinecap="round"
-                                />
-                              </svg>
-                            </span>
-                            Kapasitas: {kitchen?.capacity ?? "Belum tersedia"}
-                          </li>
-                        </ul>
-                        <button
-                          type="button"
-                          className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#136DEC] py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(19,109,236,0.3)]"
-                        >
-                          Lihat Profil SPPG
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <path
-                              d="M5 12h14M13 6l6 6-6 6"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </Popup>
-                </CircleMarker>
-              ))}
-            </MapContainer>
-
-            {isLoading ? (
-              <div className="absolute left-4 top-4 z-20 rounded-lg bg-white/90 px-3 py-2 text-xs font-bold text-slate-700 shadow">
-                Memuat data peta...
-              </div>
-            ) : null}
-
-            {isUsingFallback ? (
-              <div className="absolute left-16 top-4 z-20 rounded-lg bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
-                Menampilkan data contoh
-              </div>
-            ) : null}
-
-            <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2 rounded-lg bg-white/90 p-2 text-xs font-bold text-slate-900 md:bottom-6 md:right-6">
-              <span className="inline-block h-3 w-3 rounded-full bg-blue-500" />
-              Sekolah
-              <span className="ml-2 inline-block h-3 w-3 rounded-full bg-green-500" />
-              Dapur SPPG
+          <div className="mt-3 space-y-2.5 text-sm font-semibold text-slate-600">
+            <div className="flex items-center gap-2">
+              <FiMapPin className="h-4 w-4 shrink-0 text-slate-500" />
+              <span>{item.location}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {isSppg ? (
+                <FiUsers className="h-4 w-4 shrink-0 text-slate-500" />
+              ) : (
+                <LuRoute className="h-4 w-4 shrink-0 text-slate-500" />
+              )}
+              <span>{item.info}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {isSppg ? (
+                <LuChefHat className="h-4 w-4 shrink-0 text-slate-500" />
+              ) : (
+                <LuGraduationCap className="h-4 w-4 shrink-0 text-slate-500" />
+              )}
+              <span>{item.capacity}</span>
             </div>
           </div>
+
+          <button
+            type="button"
+            className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#136DEC] text-sm font-black text-white shadow-[0_8px_18px_rgba(19,109,236,0.28)] hover:bg-blue-700"
+          >
+            {profileLabel}
+            <FiArrowRight className="h-4 w-4" />
+          </button>
         </div>
+      </div>
+
+      <span className="absolute left-1/2 top-full h-4 w-4 -translate-x-1/2 -translate-y-2 rotate-45 border-b border-r border-slate-200 bg-white shadow-[8px_8px_16px_rgba(15,23,42,0.08)]" />
+    </article>
+  );
+}
+
+function Legend() {
+  return (
+    <div className="absolute bottom-5 left-5 z-[500] rounded-xl border border-slate-200 bg-white p-4 shadow-[0_12px_30px_rgba(15,23,42,0.14)]">
+      <p className="mb-3 text-xs font-bold text-slate-500">Simbol Peta</p>
+      <div className="space-y-2 text-sm font-semibold text-slate-700">
+        <div className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-full bg-emerald-500" />
+          Dapur SPPG
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-full bg-blue-500" />
+          Sekolah
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-0.5 w-8 border-t-2 border-[#136DEC]" />
+          Rute Pengiriman
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Maps() {
+  const { sppgItems: sppgData, schoolItems: schoolData, isLoading, isUsingFallback } = useMapsPage();
+  const [selected, setSelected] = useState(null);
+  const [popupPoint, setPopupPoint] = useState(null);
+
+  const sppgItems = useMemo(
+    () => sppgData.map((item) => ({ ...item, type: "sppg" })),
+    [sppgData],
+  );
+  const schoolItems = useMemo(
+    () => schoolData.map((item) => ({ ...item, type: "school" })),
+    [schoolData],
+  );
+  const validSppgItems = useMemo(
+    () => sppgItems.filter(hasValidLatLng),
+    [sppgItems],
+  );
+  const validSchoolItems = useMemo(
+    () => schoolItems.filter(hasValidLatLng),
+    [schoolItems],
+  );
+  const allItems = useMemo(
+    () => [...validSppgItems, ...validSchoolItems],
+    [validSppgItems, validSchoolItems],
+  );
+
+  const selectedItem = useMemo(() => {
+    if (!selected) return null;
+    return allItems.find((item) => item.type === selected.type && item.id === selected.id) ?? null;
+  }, [allItems, selected]);
+
+  const routeLines = useMemo(() => {
+    if (!selectedItem) return [];
+
+    if (selectedItem.type === "sppg") {
+      return selectedItem.schools
+        .map((schoolId) => validSchoolItems.find((school) => school.id === schoolId))
+        .filter(Boolean)
+        .map((school) => [getPosition(selectedItem), getPosition(school)]);
+    }
+
+    const sppg = validSppgItems.find((item) => item.id === selectedItem.sppgId);
+    return sppg && hasValidLatLng(selectedItem)
+      ? [[getPosition(sppg), getPosition(selectedItem)]]
+      : [];
+  }, [selectedItem, validSchoolItems, validSppgItems]);
+
+  const handleSelect = (type, id) => {
+    setSelected({ type, id });
+  };
+
+  const clearSelection = useCallback(() => {
+    setSelected(null);
+    setPopupPoint(null);
+  }, []);
+
+  return (
+    <section className="bg-slate-50 w-full px-6 py-16 md:px-12 lg:px-20">
+      <div className="mb-6 flex items-end justify-between">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900 md:text-3xl">
+            Peta Sebaran Dapur &amp; Sekolah
+          </h2>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            Pilih wilayah untuk melihat detail SPPG dan unit sekolah terdekat.
+          </p>
+        </div>
+        <Link
+          to="/maps"
+          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-[#136DEC] transition"
+        >
+          View Full Map
+          <FiExternalLink className="h-4 w-4" />
+        </Link>
+      </div>
+
+      {/* Map Container */}
+      <div className="relative h-[480px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgba(15,23,42,0.10)]">
+        <MapContainer center={defaultCenter} zoom={12} zoomControl={false} className="h-full w-full">
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+
+          <MapController selectedItem={selectedItem} />
+          <MapProjection selectedItem={selectedItem} onClear={clearSelection} onPointChange={setPopupPoint} />
+
+          {routeLines.map((positions, index) => (
+            <Polyline
+              key={index}
+              positions={positions}
+              pathOptions={{
+                color: "#136DEC",
+                weight: 4,
+                opacity: 0.85,
+              }}
+            />
+          ))}
+
+          <MarkerLayer items={allItems} selectedItem={selectedItem} onSelect={handleSelect} />
+        </MapContainer>
+
+        <PopupCard item={selectedItem} point={popupPoint} onClose={clearSelection} />
+        <Legend />
+        {isLoading ? (
+          <div className="absolute right-5 top-5 z-[500] rounded-xl bg-white/90 px-3 py-2 text-xs font-bold text-slate-700 shadow">
+            Memuat data peta...
+          </div>
+        ) : null}
+        {isUsingFallback ? (
+          <div className="absolute right-5 top-5 z-[500] rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
+            Menampilkan data contoh
+          </div>
+        ) : null}
       </div>
     </section>
   );
-};
-
-export default Maps;
+}
