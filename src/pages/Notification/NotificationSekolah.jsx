@@ -3,13 +3,13 @@ import { useNavigate } from "react-router-dom";
 import logo from "../../assets/Logo.png";
 import iconProfile from "../../assets/icon_profile.png";
 import { useAuth } from "../../hooks/useAuth";
-import { getNotificationsBySekolahId, markAllAsRead, markAsRead } from "../../services/notificationService";
+import { getNotificationsBySchoolId } from "../../services/notificationService";
+import { resolveImageUrl } from "../../utils/imageUrl";
 
 import iconPengiriman    from "../../assets/icon_pengiriman.png";
 import iconVerifPengiriman from "../../assets/Icon_Verifikasi.png";
 import iconMenu          from "../../assets/Icon_Menu.png";
 import iconVerifikasi    from "../../assets/Icon_Verif.png";
-import fotoSekolah       from "../../assets/foto_sekolah.png";
 
 function IconBell({ hasUnread }) {
   return (
@@ -40,10 +40,9 @@ function IconTypeMap({ type }) {
   );
 }
 
-function NotifCard({ notif, onRead }) {
+function NotifCard({ notif }) {
   return (
     <div
-      onClick={() => !notif.isRead && onRead(notif.id)}
       className={`relative flex items-start gap-4 p-5 rounded-2xl border transition-all cursor-pointer
         ${notif.isRead
           ? "bg-white border-slate-100 hover:border-slate-200"
@@ -79,7 +78,9 @@ function NotifCard({ notif, onRead }) {
   );
 }
 
-function RightSidebar({ sekolah, onMarkAllRead }) {
+function RightSidebar({ sekolah }) {
+  const sekolahPhoto = resolveImageUrl(sekolah?.foto);
+
   return (
     <div className="space-y-4">
 
@@ -103,9 +104,9 @@ function RightSidebar({ sekolah, onMarkAllRead }) {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="h-32 bg-gradient-to-br from-slate-400 to-slate-600 relative overflow-hidden">
-          {sekolah?.foto ? (
+          {sekolahPhoto ? (
             <div className="relative w-full h-full">
-              <img src={sekolah.foto} alt="Gedung Sekolah" className="w-full h-full object-cover" />
+              <img src={sekolahPhoto} alt="Gedung Sekolah" className="w-full h-full object-cover" />
               <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 bg-gradient-to-t from-black/60 to-transparent pt-8">
                 <p className="text-white font-bold text-[14px] leading-tight">
                   {sekolah?.nama || "SMP Negeri 115 Jakarta"}
@@ -158,15 +159,6 @@ function RightSidebar({ sekolah, onMarkAllRead }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
           </button>
-          <button
-            onClick={onMarkAllRead}
-            className="w-full flex items-center justify-between py-2.5 text-[14px] text-slate-700 hover:text-slate-900 transition-colors"
-          >
-            <span>Tandai Semua Dibaca</span>
-            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-slate-400">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -177,93 +169,59 @@ function RightSidebar({ sekolah, onMarkAllRead }) {
 export default function NotificationSekolah() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const sekolahId = user?.sekolahId || user?.id || null;
+  const profileId = sekolahId;
+  const hasSekolahId = Boolean(sekolahId);
   const [notifs, setNotifs] = useState([]);
-  const [sekolah, setSekolah] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const sekolah = user?.school ?? user?.sekolah ?? null;
+  const [loading, setLoading] = useState(hasSekolahId);
+  const [error, setError] = useState(hasSekolahId ? '' : 'ID sekolah belum tersedia.');
 
   const displayName = user?.name || user?.identifier || "Pengguna Sekolah";
-  const sekolahId = user?.sekolahId || user?.id || 1;
 
   useEffect(() => {
-    const fetchData = () => {
-      setLoading(true);
-      getNotificationsBySekolahId(sekolahId)
-      .then(res => {
-        setNotifs(res.data.notifications || []);
-        setSekolah(res.data.sekolah || null);
+    if (!sekolahId) {
+      return;
+    }
+    Promise.resolve()
+      .then(() => {
+        setLoading(true);
+        setError('');
+        return getNotificationsBySchoolId(sekolahId);
+      })
+      .then((res) => {
+        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
+        setNotifs(data);
       })
       .catch(() => {
-        setNotifs([
-          {
-            id: 1,
-            type: "verif_pengiriman",
-            judul: "Mohon Verifikasi Penerimaan",
-            deskripsi: "Kiriman makan siang tahap 1 telah tiba di lokasi. Harap lakukan verifikasi kuantitas dan kualitas item segera.",
-            waktu: "10:45 WIB",
-            isRead: false,
-            actionLabel: "Verifikasi Sekarang",
-          },
-          {
-            id: 2,
-            type: "pengiriman",
-            judul: "Pengiriman Sedang Berlangsung",
-            deskripsi: "Kurir MBG-042 sedang menuju lokasi Anda. Estimasi waktu tiba adalah 20 menit dari sekarang.",
-            waktu: "09:15 WIB",
-            isRead: false,
-            actionLabel: null,
-          },
-          {
-            id: 3,
-            type: "menu",
-            judul: "Perubahan Menu Hari Ini",
-            deskripsi: "Ada penyesuaian pada menu protein untuk hari ini. Ayam Goreng Lengkuas digantikan dengan Ayam Semur karena kendala pasokan lokal.",
-            waktu: "Kemarin, 16:30",
-            isRead: true,
-            actionLabel: null,
-          },
-          {
-            id: 4,
-            type: "verifikasi",
-            judul: "Verifikasi Selesai",
-            deskripsi: "Laporan verifikasi untuk tanggal 21 Okt telah berhasil diunggah dan disetujui oleh sistem.",
-            waktu: "Kemarin, 13:00",
-            isRead: true,
-            actionLabel: null,
-          },
-        ]);
-        setSekolah({
-          nama: "SMP Negeri 115 Jakarta",
-          foto: fotoSekolah,
-          kota: "Jakarta Selatan, DKI Jakarta",
-          jumlahSiswa: 450,
-        });
+        setNotifs([]);
+        setError('Gagal memuat notifikasi.');
       })
       .finally(() => setLoading(false));
-    };
-    fetchData();
   }, [sekolahId]);
 
-  const handleMarkAsRead = (id) => {
-    markAsRead(id).catch(() => {});
-    setNotifs(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  const formatTime = (value) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleMarkAllRead = () => {
-    markAllAsRead(sekolahId).catch(() => {});
-    setNotifs(prev => prev.map(n => ({ ...n, isRead: true })));
-  };
+  const normalizedNotifs = notifs.map((item, index) => ({
+    id: item?.id ?? `${item?.type ?? 'notif'}-${item?.createdAt ?? 'unknown'}-${index}`,
+    type: item?.type ?? 'info',
+    judul: item?.title ?? item?.judul ?? 'Notifikasi',
+    deskripsi: item?.message ?? item?.deskripsi ?? 'Detail notifikasi belum tersedia.',
+    waktu: item?.createdAt ? formatTime(item.createdAt) : '-',
+    isRead: item?.status && item.status !== 'new',
+    actionLabel: null,
+  }));
 
-  const hasUnread = notifs.some(n => !n.isRead);
+  const hasUnread = normalizedNotifs.some(n => !n.isRead);
 
-  const todayNotifs = notifs.filter(n =>
-    n.waktu && !n.waktu.toLowerCase().startsWith("kemarin") && !n.waktu.toLowerCase().startsWith("minggu")
-  );
-  const yesterdayNotifs = notifs.filter(n =>
-    n.waktu && n.waktu.toLowerCase().startsWith("kemarin")
-  );
-  const olderNotifs = notifs.filter(n =>
-    n.waktu && n.waktu.toLowerCase().startsWith("minggu")
-  );
+  const todayNotifs = normalizedNotifs.filter(n => n.waktu && n.waktu !== '-');
+  const yesterdayNotifs = [];
+  const olderNotifs = [];
 
   return (
     <div className="bg-[#F3F4F6] min-h-screen flex flex-col">
@@ -282,9 +240,15 @@ export default function NotificationSekolah() {
               <IconBell hasUnread={hasUnread} />
             </button>
             <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
-            <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer">
+            <button
+              type="button"
+              onClick={() => profileId && navigate(`/profil/sekolah/${profileId}`)}
+              className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Buka Profil Sekolah"
+              disabled={!profileId}
+            >
               <img src={iconProfile} alt="" />
-            </div>
+            </button>
           </div>
         </div>
       </nav>
@@ -321,7 +285,11 @@ export default function NotificationSekolah() {
                     </div>
                   ))}
                 </div>
-              ) : notifs.length === 0 ? (
+              ) : error ? (
+                <div className="bg-white rounded-2xl border border-slate-100 p-6 text-center text-rose-600">
+                  {error}
+                </div>
+              ) : normalizedNotifs.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
                   <svg className="mx-auto mb-4 text-slate-200" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
@@ -337,7 +305,7 @@ export default function NotificationSekolah() {
                       </p>
                       <div className="space-y-3">
                         {todayNotifs.map(n => (
-                          <NotifCard key={n.id} notif={n} onRead={handleMarkAsRead} />
+                          <NotifCard key={n.id} notif={n} />
                         ))}
                       </div>
                     </div>
@@ -350,7 +318,7 @@ export default function NotificationSekolah() {
                       </p>
                       <div className="space-y-3">
                         {yesterdayNotifs.map(n => (
-                          <NotifCard key={n.id} notif={n} onRead={handleMarkAsRead} />
+                          <NotifCard key={n.id} notif={n} />
                         ))}
                       </div>
                     </div>
@@ -363,7 +331,7 @@ export default function NotificationSekolah() {
                       </p>
                       <div className="space-y-3">
                         {olderNotifs.map(n => (
-                          <NotifCard key={n.id} notif={n} onRead={handleMarkAsRead} />
+                          <NotifCard key={n.id} notif={n} />
                         ))}
                       </div>
                     </div>
@@ -373,7 +341,7 @@ export default function NotificationSekolah() {
             </div>
 
             <div className="lg:w-72 xl:w-80 flex-shrink-0">
-              <RightSidebar sekolah={sekolah} onMarkAllRead={handleMarkAllRead} />
+              <RightSidebar sekolah={sekolah} />
             </div>
 
           </div>

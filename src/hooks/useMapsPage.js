@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
-import { fallbackSchoolData, fallbackSppgData } from "../pages/Maps/Maps.data";
 import { getAllSekolah } from "../services/sekolahService";
 import { getAllSPPG } from "../services/sppgService";
 import { mapSchoolForMapPage, mapSppgForMapPage } from "../utils/mapsPageMapper";
 
 export function useMapsPage() {
-  const [sppgItems, setSppgItems] = useState(fallbackSppgData);
-  const [schoolItems, setSchoolItems] = useState(fallbackSchoolData);
+  const [sppgItems, setSppgItems] = useState([]);
+  const [schoolItems, setSchoolItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isUsingFallback, setIsUsingFallback] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadMapData = async () => {
@@ -32,27 +31,15 @@ export function useMapsPage() {
 
         const mappedSppg = sppgData.map(mapSppgForMapPage);
         const mappedSchool = schoolData.map(mapSchoolForMapPage);
-        const hasApiData = mappedSppg.length > 0 || mappedSchool.length > 0;
 
-        if (hasApiData) {
-          if (mappedSppg.length > 0) {
-            setSppgItems(mappedSppg);
-          }
-          if (mappedSchool.length > 0) {
-            setSchoolItems(mappedSchool);
-          }
-          setIsUsingFallback(false);
-          return;
-        }
-
-        setSppgItems(fallbackSppgData);
-        setSchoolItems(fallbackSchoolData);
-        setIsUsingFallback(true);
+        setSppgItems(mappedSppg);
+        setSchoolItems(mappedSchool);
+        setError(null);
       } catch (error) {
         console.error("Gagal mengambil data peta:", error);
-        setSppgItems(fallbackSppgData);
-        setSchoolItems(fallbackSchoolData);
-        setIsUsingFallback(true);
+        setSppgItems([]);
+        setSchoolItems([]);
+        setError("Gagal mengambil data peta.");
       } finally {
         setIsLoading(false);
       }
@@ -65,6 +52,6 @@ export function useMapsPage() {
     sppgItems,
     schoolItems,
     isLoading,
-    isUsingFallback,
+    error,
   };
 }

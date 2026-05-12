@@ -314,7 +314,7 @@ function SchoolCard({ item }) {
 }
 
 export default function DashboardPemantauan() {
-  const { sppgUnits, schoolUnits} =
+  const { sppgUnits, schoolUnits, isLoading, error } =
     useDashboardPemantauan();
 
   return (
@@ -337,13 +337,21 @@ export default function DashboardPemantauan() {
               icon={<SppgIcon />}
             />
           </div>
-            <div className="px-6 py-6">
+          <div className="px-6 py-6">
+            {isLoading ? (
+              <p className="text-sm font-semibold text-slate-500">Memuat data SPPG...</p>
+            ) : error ? (
+              <p className="text-sm font-semibold text-rose-600">{error}</p>
+            ) : sppgUnits.length === 0 ? (
+              <p className="text-sm font-semibold text-slate-500">Belum ada data SPPG.</p>
+            ) : (
               <DragScroller ariaLabel="Daftar SPPG horizontal">
                 {sppgUnits.map((item) => (
                   <SppgCard key={item.id} item={item} />
                 ))}
               </DragScroller>
-            </div>
+            )}
+          </div>
         </div>
 
         <div
@@ -354,11 +362,19 @@ export default function DashboardPemantauan() {
             <SectionHeader title="Info Unit Sekolah" icon={<SchoolIcon />} />
           </div>
           <div className="px-6 py-6">
-            <DragScroller ariaLabel="Daftar unit sekolah horizontal">
-              {schoolUnits.map((item) => (
-                <SchoolCard key={item.id} item={item} />
-              ))}
-            </DragScroller>
+            {isLoading ? (
+              <p className="text-sm font-semibold text-slate-500">Memuat data sekolah...</p>
+            ) : error ? (
+              <p className="text-sm font-semibold text-rose-600">{error}</p>
+            ) : schoolUnits.length === 0 ? (
+              <p className="text-sm font-semibold text-slate-500">Belum ada data sekolah.</p>
+            ) : (
+              <DragScroller ariaLabel="Daftar unit sekolah horizontal">
+                {schoolUnits.map((item) => (
+                  <SchoolCard key={item.id} item={item} />
+                ))}
+              </DragScroller>
+            )}
           </div>
         </div>
       </div>

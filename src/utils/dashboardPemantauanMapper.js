@@ -1,15 +1,11 @@
+import { getDisplayValue } from "./display";
+
 function formatCapacity(value) {
-  if (value === undefined || value === null || value === "") {
-    return "CAPACITY: -";
-  }
-  return `CAPACITY: ${value}`;
+  return `CAPACITY: ${getDisplayValue(value)}`;
 }
 
 function formatStudents(value) {
-  if (value === undefined || value === null || value === "") {
-    return "- SISWA";
-  }
-  return `${value} SISWA`;
+  return `${getDisplayValue(value)} SISWA`;
 }
 
 function formatStatus(value) {
@@ -20,22 +16,24 @@ function formatStatus(value) {
 export function mapSppgItem(item, index) {
   return {
     id: item?.id ?? `sppg-${index}`,
-    title: item?.title ?? item?.name ?? "SPPG Tanpa Nama",
+    title: getDisplayValue(item?.title ?? item?.name),
     location:
-      item?.location ?? item?.city ?? item?.address ?? "Lokasi belum tersedia",
-    status: item?.statusLabel ?? formatStatus(item?.status),
+      getDisplayValue(item?.location ?? item?.city ?? item?.address),
+    status: getDisplayValue(item?.statusLabel ?? formatStatus(item?.status)),
     capacity: item?.capacity ?? formatCapacity(item?.capacityPerDay),
     schoolsServed:
-      item?.schoolsServed ??
-      item?.totalSchoolsServed ??
-      item?.totalPartnerSchools ??
-      0,
+      getDisplayValue(
+        item?.schoolsServed ??
+          item?.totalSchoolsServed ??
+          item?.totalPartnerSchools,
+      ),
     distributedPortions:
-      item?.distributedPortions ??
-      item?.totalDistributedPortions ??
-      item?.totalMealsDistributed ??
-      "0",
-    rating: item?.rating ?? item?.averageRating ?? "-",
+      getDisplayValue(
+        item?.distributedPortions ??
+          item?.totalDistributedPortions ??
+          item?.totalMealsDistributed,
+      ),
+    rating: getDisplayValue(item?.rating ?? item?.averageRating),
   };
 }
 
@@ -50,18 +48,17 @@ export function mapSchoolItem(item, index) {
 
   return {
     id: item?.id ?? `school-${index}`,
-    title: item?.title ?? item?.schoolName ?? item?.name ?? "Sekolah Tanpa Nama",
+    title: getDisplayValue(item?.title ?? item?.schoolName ?? item?.name),
     location:
-      item?.location ?? item?.city ?? item?.address ?? "Lokasi belum tersedia",
+      getDisplayValue(item?.location ?? item?.city ?? item?.address),
     kitchen: kitchenName.startsWith("KITCHEN:")
       ? kitchenName
       : `KITCHEN: ${kitchenName}`,
     students: item?.students ?? formatStudents(item?.studentsCount),
-    menuLabel: item?.menuLabel ?? "Menu Hari Ini",
-    menuTitle: item?.menuTitle ?? item?.todayMenuTitle ?? "Menu belum tersedia",
-    menuDetail:
-      item?.menuDetail ?? item?.todayMenuDetail ?? "Detail menu belum tersedia",
-    calories: item?.calories ?? "-",
-    nutrition: item?.nutrition ?? "Target Nutrisi: -",
+    menuLabel: getDisplayValue(item?.menuLabel ?? "Menu Hari Ini"),
+    menuTitle: getDisplayValue(item?.menuTitle ?? item?.todayMenuTitle),
+    menuDetail: getDisplayValue(item?.menuDetail ?? item?.todayMenuDetail),
+    calories: getDisplayValue(item?.calories),
+    nutrition: getDisplayValue(item?.nutrition ?? "Target Nutrisi: -"),
   };
 }

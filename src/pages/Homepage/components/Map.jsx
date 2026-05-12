@@ -208,7 +208,7 @@ export default function Maps() {
     sppgItems: sppgData,
     schoolItems: schoolData,
     isLoading,
-    isUsingFallback,
+    error,
   } = useMapsPage();
   const [selected, setSelected] = useState(null);
   const [popupPoint, setPopupPoint] = useState(null);
@@ -229,6 +229,7 @@ export default function Maps() {
     () => schoolItems.filter(hasValidLatLng),
     [schoolItems],
   );
+  const hasItems = validSppgItems.length > 0 || validSchoolItems.length > 0;
   const allItems = useMemo(
     () => [...validSppgItems, ...validSchoolItems],
     [validSppgItems, validSchoolItems],
@@ -341,9 +342,14 @@ export default function Maps() {
               Memuat data peta...
             </div>
           ) : null}
-          {isUsingFallback ? (
-            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
-              Menampilkan data contoh
+          {error ? (
+            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-700 shadow">
+              {error}
+            </div>
+          ) : null}
+          {!isLoading && !error && !hasItems ? (
+            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 shadow">
+              Data peta belum tersedia
             </div>
           ) : null}
         </div>

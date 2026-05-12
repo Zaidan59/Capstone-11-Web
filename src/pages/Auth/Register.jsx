@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Logo from "../../assets/Logo.png";
 import Regist_image from "../../assets/Regist_image.png";
-// import { register } from "../../services/authService";
+import { register } from "../../services/authService";
 
 const sppgOptions = [
   "SPPG Srengseng",
@@ -47,10 +47,19 @@ export default function Register() {
     }
     setIsLoading(true);
     try {
-     // await register({ ...form, role });//
+      await register({
+        role,
+        name: form.nama,
+        email: form.email,
+        phone: form.nomor,
+        code: form.kode,
+        address: form.alamat,
+        sppg: role === "sekolah" ? form.sppg : null,
+        password: form.password,
+      });
       navigate("/login");
-    } catch {
-      setError("Pendaftaran gagal. Silakan coba lagi.");
+    } catch (err) {
+      setError(err?.response?.data?.message ?? "Pendaftaran gagal. Silakan coba lagi.");
     } finally {
       setIsLoading(false);
     }

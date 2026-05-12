@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import IconMap from "../../assets/Icon_map.png";
 import IconBuilding from "../../assets/Icon_building.png";
 import IconCalendar from "../../assets/Icon_calendar.png";
@@ -11,14 +12,62 @@ import IconFeedback from "../../assets/Icon_feedback.png";
 import IconWarning from "../../assets/Icon_warning.png";
 import logo from "../../assets/Logo.png";
 import IconProfile from "../../assets/Icon_profile.png";
+import { useAuth } from '../../hooks/useAuth';
+import { getSPPGById } from '../../services/sppgService';
+import { getDisplayValue } from '../../utils/display';
 
 const DashboardSPPG = () => {
-  const user = { name: "SPPG XX" };
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const sppgId = user?.sppgId || user?.id || null;
+  const profileId = user?.sppgId || user?.id || null;
+  const hasSppgId = Boolean(sppgId);
+  const [sppgData, setSppgData] = useState(null);
+  const [servedSchools, setServedSchools] = useState([]);
+  const [loading, setLoading] = useState(hasSppgId);
+  const [error, setError] = useState(hasSppgId ? '' : 'ID SPPG belum tersedia.');
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [menuData, setMenuData] = useState([
-    { day: 'Monday', mainDish: 'Chicken Rice Bowl', sideDish: 'Steamed Broccoli', fruit: 'Apple Slice' },
-    { day: 'Tuesday', mainDish: 'Beef Stir-fry', sideDish: 'Tofu Salad', fruit: 'Banana' },
-  ]);
+  const [menuData, setMenuData] = useState([]);
+
+  useEffect(() => {
+    if (!sppgId) {
+      return;
+    }
+    Promise.resolve()
+      .then(() => {
+        setLoading(true);
+        setError('');
+        return getSPPGById(sppgId);
+      })
+      .then((res) => {
+        const data = res?.data?.data ?? null;
+        setSppgData(data);
+        setServedSchools(Array.isArray(data?.schools) ? data.schools : []);
+        setMenuData([]);
+      })
+      .catch(() => {
+        setSppgData(null);
+        setServedSchools([]);
+        setMenuData([]);
+        setError('Gagal memuat data SPPG.');
+      })
+      .finally(() => setLoading(false));
+  }, [sppgId]);
+
+  const sppgName = getDisplayValue(sppgData?.name);
+  const sppgAddress = getDisplayValue(sppgData?.address);
+  const sppgStatus = getDisplayValue(sppgData?.status);
+  const displayName = user?.name || user?.identifier || 'Admin SPPG';
+  const schoolCount = servedSchools.length > 0 ? servedSchools.length : '-';
+  const todayLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      }),
+    [],
+  );
 
   const handleFileDrop = (e) => {
     e.preventDefault();
@@ -28,11 +77,51 @@ const DashboardSPPG = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col">
+      <nav className="sticky top-0 z-40 bg-white shadow w-full">
+        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-[52px]">
+          <div className="flex items-center gap-2.5">
+            <img src={logo} alt="SIMBA Logo" className="w-9 h-9" />
+            <span className="font-bold text-[20px] text-[#1a2233] tracking-wide">SIMBA</span>
+          </div>
+          <div className="flex items-center gap-[18px]">
+            <button
+              className="relative"
+              onClick={() => navigate('/notification')}
+              aria-label="Buka Notifikasi"
+            >
+              <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-700 hover:text-blue-600 transition-colors">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500" />
+            </button>
+            <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
+            <button
+              type="button"
+              onClick={() => profileId && navigate(`/profil/sppg/${profileId}`)}
+              className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label="Buka Profil SPPG"
+              disabled={!profileId}
+            >
+              <img src={IconProfile} alt="" />
+            </button>
+          </div>
+        </div>
+      </nav>
 
 
       {/* MAIN CONTENT */}
       <div className="py-10 px-4 flex-1">
         <div className="max-w-7xl mx-auto">
+          {loading ? (
+            <div className="mb-6 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500">
+              Memuat data SPPG...
+            </div>
+          ) : null}
+          {error ? (
+            <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+              {error}
+            </div>
+          ) : null}
 
           {/* HEADER INFO CARD */}
           <div className="bg-white p-8 rounded-xl border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm">
@@ -42,28 +131,28 @@ const DashboardSPPG = () => {
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-4">
-                  <h1 className="text-3xl font-bold tracking-tight text-gray-900">SPPG Kebayoran Baru</h1>
+                  <h1 className="text-3xl font-bold tracking-tight text-gray-900">{sppgName}</h1>
                   <span className="inline-flex items-center gap-1 px-4 py-1.5 bg-[#E7F8F0] text-[#059669] text-[14px] font-semibold rounded-full border border-[#D1FAE5]">
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2">
                       <circle cx="12" cy="12" r="10" />
                       <path strokeLinecap="round" strokeLinejoin="round" d="M7 13l3 3 7-7" />
                     </svg>
-                    Operasional Aktif
+                    {sppgStatus === '-' ? 'Status -' : `Status ${sppgStatus}`}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 text-gray-500 text-lg mt-1.5">
                   <img src={IconMap} alt="Map Icon" className="w-4 h-4 object-contain"
                     style={{ filter: 'invert(60%) sepia(0%) saturate(0%) brightness(90%)' }} />
-                  <p>Jl. Melawai Raya No.12, Kebayoran Baru, Jakarta Selatan</p>
+                  <p>{sppgAddress}</p>
                 </div>
                 <div className="flex gap-4 mt-3 text-sm font-bold text-gray-600 uppercase tracking-wide">
                   <span className="flex items-center gap-2">
                     <img src={IconEducation} alt="Education Icon" className="w-7 h-7 object-contain" />
-                    5 Schools Served
+                    {schoolCount} Schools Served
                   </span>
                   <span className="flex items-center gap-2 pl-8">
                     <img src={IconCalendar} alt="Calendar Icon" className="w-6 h-6 object-contain" />
-                    Today: October 24, 2023
+                    Today: {todayLabel}
                   </span>
                 </div>
               </div>
@@ -96,7 +185,7 @@ const DashboardSPPG = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
               <span className="text-lg font-semibold text-gray-600">
-                {uploadedFile ? uploadedFile.name : 'Menu Week 2.csv'}
+                {uploadedFile ? uploadedFile.name : 'Menu belum tersedia'}
               </span>
             </div>
 
@@ -115,14 +204,23 @@ const DashboardSPPG = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {menuData.map((row, i) => (
-                      <tr key={i} className="border-b border-gray-100 last:border-0">
-                        <td className="px-6 py-4 text-gray-700">{row.day}</td>
-                        <td className="px-6 py-4 text-gray-700">{row.mainDish}</td>
-                        <td className="px-6 py-4 text-gray-700">{row.sideDish}</td>
-                        <td className="px-6 py-4 text-gray-700">{row.fruit}</td>
+                    {menuData.length > 0 ? (
+                      menuData.map((row, i) => (
+                        <tr key={i} className="border-b border-gray-100 last:border-0">
+                          <td className="px-6 py-4 text-gray-700">{getDisplayValue(row.day)}</td>
+                          <td className="px-6 py-4 text-gray-700">{getDisplayValue(row.mainDish)}</td>
+                          <td className="px-6 py-4 text-gray-700">{getDisplayValue(row.sideDish)}</td>
+                          <td className="px-6 py-4 text-gray-700">{getDisplayValue(row.fruit)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr className="border-b border-gray-100 last:border-0">
+                        <td className="px-6 py-4 text-gray-700">-</td>
+                        <td className="px-6 py-4 text-gray-700">-</td>
+                        <td className="px-6 py-4 text-gray-700">-</td>
+                        <td className="px-6 py-4 text-gray-700">-</td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>

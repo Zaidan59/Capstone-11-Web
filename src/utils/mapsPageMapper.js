@@ -1,3 +1,5 @@
+import { getDisplayValue } from "./display";
+
 const toStringArray = (value) => {
   if (Array.isArray(value)) {
     return value.map((item) => String(item));
@@ -21,19 +23,14 @@ const toNumber = (value) => {
 export const mapSppgForMapPage = (item, index) => {
   return {
     id: String(item?.id ?? item?._id ?? item?.sppgId ?? `sppg-${index + 1}`),
-    name: item?.name ?? item?.nama ?? item?.sppgName ?? `SPPG ${index + 1}`,
+    name: getDisplayValue(item?.name ?? item?.nama ?? item?.sppgName),
     location:
-      item?.location ??
-      item?.city ??
-      item?.address ??
-      item?.wilayah ??
-      "Lokasi belum tersedia",
-    info: item?.info ?? item?.coverage ?? item?.melayani ?? "Melayani sekolah sekitar",
+      getDisplayValue(
+        item?.location ?? item?.city ?? item?.address ?? item?.wilayah,
+      ),
+    info: getDisplayValue(item?.info ?? item?.coverage ?? item?.melayani),
     capacity:
-      item?.capacity ??
-      item?.capacityPerDay ??
-      item?.kapasitas ??
-      "Kapasitas belum tersedia",
+      getDisplayValue(item?.capacity ?? item?.capacityPerDay ?? item?.kapasitas),
     lat: toNumber(item?.lat),
     lng: toNumber(item?.lng),
     schools: toStringArray(
@@ -45,21 +42,20 @@ export const mapSppgForMapPage = (item, index) => {
 export const mapSchoolForMapPage = (item, index) => {
   return {
     id: String(item?.id ?? item?._id ?? item?.sekolahId ?? `school-${index + 1}`),
-    name: item?.name ?? item?.nama ?? item?.schoolName ?? `Sekolah ${index + 1}`,
+    name: getDisplayValue(item?.name ?? item?.nama ?? item?.schoolName),
     location:
-      item?.location ??
-      item?.city ??
-      item?.address ??
-      item?.wilayah ??
-      "Lokasi belum tersedia",
+      getDisplayValue(
+        item?.location ?? item?.city ?? item?.address ?? item?.wilayah,
+      ),
     info:
-      item?.info ?? item?.partnerInfo ?? item?.description ?? "Mitra distribusi SPPG",
+      getDisplayValue(item?.info ?? item?.partnerInfo ?? item?.description),
     capacity:
-      item?.capacity ??
-      item?.students ??
-      item?.studentsCount ??
-      item?.jumlahSiswa ??
-      "Jumlah siswa belum tersedia",
+      getDisplayValue(
+        item?.capacity ??
+          item?.students ??
+          item?.studentsCount ??
+          item?.jumlahSiswa,
+      ),
     lat: toNumber(item?.lat),
     lng: toNumber(item?.lng),
     sppgId:

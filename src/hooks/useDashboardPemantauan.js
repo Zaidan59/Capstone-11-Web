@@ -1,20 +1,13 @@
 import { useEffect, useState } from "react";
 import { getAllSPPG } from "../services/sppgService";
 import { getAllSekolah } from "../services/sekolahService";
-import {
-  fallbackSchoolUnits,
-  fallbackSppgUnits,
-} from "../pages/Homepage/components/DashboardPemantauan.data";
-import {
-  mapSchoolItem,
-  mapSppgItem,
-} from "../utils/dashboardPemantauanMapper";
+import { mapSchoolItem, mapSppgItem } from "../utils/dashboardPemantauanMapper";
 
 export function useDashboardPemantauan() {
-  const [sppgUnits, setSppgUnits] = useState(fallbackSppgUnits);
-  const [schoolUnits, setSchoolUnits] = useState(fallbackSchoolUnits);
+  const [sppgUnits, setSppgUnits] = useState([]);
+  const [schoolUnits, setSchoolUnits] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isUsingFallback, setIsUsingFallback] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -38,27 +31,15 @@ export function useDashboardPemantauan() {
 
         const mappedSppg = sppgData.map(mapSppgItem);
         const mappedSchool = schoolData.map(mapSchoolItem);
-        const hasApiData = mappedSppg.length > 0 || mappedSchool.length > 0;
 
-        if (hasApiData) {
-          if (mappedSppg.length > 0) {
-            setSppgUnits(mappedSppg);
-          }
-          if (mappedSchool.length > 0) {
-            setSchoolUnits(mappedSchool);
-          }
-          setIsUsingFallback(false);
-          return;
-        }
-
-        setSppgUnits(fallbackSppgUnits);
-        setSchoolUnits(fallbackSchoolUnits);
-        setIsUsingFallback(true);
+        setSppgUnits(mappedSppg);
+        setSchoolUnits(mappedSchool);
+        setError(null);
       } catch (error) {
         console.error("Gagal mengambil data dashboard:", error);
-        setSppgUnits(fallbackSppgUnits);
-        setSchoolUnits(fallbackSchoolUnits);
-        setIsUsingFallback(true);
+        setSppgUnits([]);
+        setSchoolUnits([]);
+        setError("Gagal mengambil data dashboard.");
       } finally {
         setIsLoading(false);
       }
@@ -71,6 +52,6 @@ export function useDashboardPemantauan() {
     sppgUnits,
     schoolUnits,
     isLoading,
-    isUsingFallback,
+    error,
   };
 }
