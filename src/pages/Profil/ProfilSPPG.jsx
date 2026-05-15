@@ -1,70 +1,96 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useRef, useState, useEffect } from "react";
-import { formatNumberValue, getDisplayValue } from "../../utils/display";
-import { resolveImageUrl } from "../../utils/imageUrl";
-import { getSPPGById } from "../../services/sppgService";
+import Footer from "../../components/common/Footer";
+import ProfilSPPGImage from "../../assets/ProfilSPPG.png";
+import Pekan1Image from "../../assets/pekan1.png";
+import Pekan2Image from "../../assets/pekan2.png";
+import Pekan3Image from "../../assets/pekan3.png";
+import Pekan4Image from "../../assets/pekan4.png";
+import Pekan5Image from "../../assets/pekan5.png";
+import Sekolah1Image from "../../assets/sekolah1.png";
+import Sekolah2Image from "../../assets/sekolah2.png";
+import Sekolah3Image from "../../assets/sekolah3.png";
 
-const emptySppg = {
-  id: null,
-  name: "-",
-  image: null,
-  location: "-",
-  description: "-",
-  longDescription: "-",
+const getMockSPPGData = (id) => ({
+  id: id || 1,
+  name: "SPPG Kebayoran Baru",
+  location: "Jl. Melawai Raya No.12, Kebayoran Baru, Jakarta Selatan",
+  description:
+    "Menyediakan makanan bergizi dan berkualitas tinggi untuk sekolah-sekolah setempat, dengan berfokus pada kebersihan, transparansi, dan bahan baku lokal. Dapur kami mematuhi standar keamanan pangan nasional tertinggi.",
+  longDescription:
+    "SPPG (Satuan Pelayanan Program Gizi) Kebayoran Baru adalah fasilitas dapur percontohan yang didedikasikan untuk program Makan Bergizi Gratis. Kami percaya bahwa setiap siswa berhak mendapatkan makanan yang tidak hanya lezat, tetapi juga memiliki gizi seimbang secara ilmiah untuk mendukung perkembangan kognitif dan pertumbuhan fisik.\n\nProtokal kebersihan kami melampaui persyaratan standar, yang dilengkapi dengan pemantauan suhu otomatis untuk semua unit penyimpanan dan pelacakan asal bahan baku secara real-time (waktu nyata). Setiap anggota staf juga telah bersertifikat dalam bidang keamanan pangan dan manajemen gizi.",
   stats: {
-    schoolsServed: "-",
-    dailyCapacity: "-",
-    staffCount: "-",
+    schoolsServed: 5,
+    dailyCapacity: 3000,
+    staffCount: 12,
   },
   nutrition: {
-    calories: "-",
-    protein: "-",
-    carbs: "-",
-    fat: "-",
-    fiber: "-",
+    calories: 650,
+    protein: 25,
+    carbs: 85,
+    fat: 15,
+    fiber: 8,
   },
   weeklyMenu: [
     {
-      day: "-",
-      title: "-",
-      items: ["-"],
-      image: null,
+      day: "Senin",
+      title: "Menu Ayam Bergizi Seimbang",
+      items: ["Nasi", "Ayam Panggang", "Sup Bayam", "Pisang"],
+      image: Pekan1Image,
+    },
+    {
+      day: "Selasa",
+      title: "Oseng Daging Sapi & Tahu",
+      items: ["Nasi", "Tumis Daging Sapi", "Tumis Tahu", "Jeruk"],
+      image: Pekan2Image,
+    },
+    {
+      day: "Rabu",
+      title: "Ikan Tinggi Protein",
+      items: ["Nasi", "Filet Ikan Kukus", "Brokoli", "Apel"],
+      image: Pekan3Image,
+    },
+    {
+      day: "Kamis",
+      title: "Menu Telur & Tempe",
+      items: ["Nasi", "Telur Bumbu Kecap", "Tempe Renyah", "Pepaya"],
+      image: Pekan4Image,
+    },
+    {
+      day: "Jumat",
+      title: "Sup Ayam Gurih",
+      items: ["Nasi Kuning", "Ayam Suwir", "Sup Sayuran", "Melon"],
+      image: Pekan5Image,
     },
   ],
-  schools: [],
-};
-
-const withUnit = (value, unit) => {
-  if (value === null || value === undefined || value === "") return "-";
-  return `${value}${unit}`;
-};
-
-function ImageBox({ src, alt, className }) {
-  const imageUrl = resolveImageUrl(src);
-
-  if (!imageUrl) {
-    return (
-      <div className={`flex flex-col items-center justify-center gap-2 bg-slate-100 text-slate-400 ${className}`}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.5" />
-          <circle cx="9" cy="10" r="1.5" fill="currentColor" />
-          <path d="m4 16 4.5-4.5a1 1 0 0 1 1.4 0L13 14.6l1.6-1.6a1 1 0 0 1 1.4 0L20 16.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-        <span className="text-[11px] font-semibold">Belum ada gambar</span>
-      </div>
-    );
-  }
-
-  return <img src={imageUrl} alt={alt} className={className} />;
-}
+  schools: [
+    {
+      name: "SMAN XX",
+      location: "Jakarta Pusat",
+      studentCount: 450,
+      siswaTotal: 1639,
+      image: Sekolah1Image,
+    },
+    {
+      name: "SMPN XX",
+      location: "Jakarta Pusat",
+      studentCount: 450,
+      siswaTotal: 1639,
+      image: Sekolah2Image,
+    },
+    {
+      name: "SDN XX",
+      location: "Jakarta Pusat",
+      studentCount: 450,
+      siswaTotal: 1639,
+      image: Sekolah3Image,
+    },
+  ],
+});
 
 export default function ProfilSPPG() {
   const navigate = useNavigate();
-  const { id } = useParams();
-  const hasId = Boolean(id);
-  const [sppgData, setSppgData] = useState(emptySppg);
-  const [loading, setLoading] = useState(hasId);
-  const [error, setError] = useState(hasId ? "" : "ID SPPG belum tersedia.");
+  const [sppgData] = useState(() => getMockSPPGData(1));
   const [isMenuDragging, setIsMenuDragging] = useState(false);
   const menuScrollRef = useRef(null)
   const isDraggingMenuRef = useRef(false)
@@ -117,57 +143,6 @@ export default function ProfilSPPG() {
     menuHasDraggedRef.current = false
   }
 
-  useEffect(() => {
-    if (!id) {
-      return;
-    }
-    Promise.resolve()
-      .then(() => {
-        setLoading(true);
-        setError("");
-        return getSPPGById(id);
-      })
-      .then((res) => {
-        const data = res?.data?.data ?? {};
-        const schools = Array.isArray(data?.schools) ? data.schools : [];
-        const mappedSchools = schools.map((school) => ({
-          name: school?.schoolName ?? school?.name ?? "-",
-          location: school?.address ?? "-",
-          studentCount: school?.studentCount ?? "-",
-          siswaTotal: school?.siswaTotal ?? "-",
-          image: school?.photoUrl ?? null,
-        }));
-
-        setSppgData({
-          ...emptySppg,
-          id: data?.id ?? null,
-          name: data?.name ?? "-",
-          image:
-            data?.photoUrl ??
-            data?.photo_url ??
-            data?.imageUrl ??
-            data?.image_url ??
-            data?.logoUrl ??
-            data?.logo_url ??
-            null,
-          location: data?.address ?? "-",
-          description: data?.description ?? "-",
-          longDescription: data?.longDescription ?? "-",
-          stats: {
-            schoolsServed: mappedSchools.length || "-",
-            dailyCapacity: data?.capacityPerDay ?? "-",
-            staffCount: data?.staffCount ?? "-",
-          },
-          schools: mappedSchools,
-        });
-      })
-      .catch(() => {
-        setSppgData(emptySppg);
-        setError("Gagal memuat data SPPG.");
-      })
-      .finally(() => setLoading(false));
-  }, [id]);
-
   // Scroll ke atas saat component mount
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -198,23 +173,12 @@ export default function ProfilSPPG() {
           Kembali
         </button>
 
-        {loading ? (
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-500">
-            Memuat data SPPG...
-          </div>
-        ) : null}
-        {error ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-            {error}
-          </div>
-        ) : null}
-
         {/* Hero Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Left: Image */}
           <div className="rounded-xl overflow-hidden shadow-sm border border-slate-200">
-            <ImageBox
-              src={sppgData.image}
+            <img
+              src={ProfilSPPGImage}
               alt={sppgData.name}
               className="w-full h-full md:h-80 object-cover"
             />
@@ -237,7 +201,7 @@ export default function ProfilSPPG() {
 
             {/* Title */}
             <h1 className="text-4xl font-bold text-slate-900">
-              {getDisplayValue(sppgData.name)}
+              {sppgData.name}
             </h1>
 
             {/* Location */}
@@ -248,11 +212,11 @@ export default function ProfilSPPG() {
                   fill="#64748B"
                 />
               </svg>
-              <span className="text-base">{getDisplayValue(sppgData.location)}</span>
+              <span className="text-base">{sppgData.location}</span>
             </div>
 
             {/* Description */}
-            <p className="text-lg text-slate-600">{getDisplayValue(sppgData.description)}</p>
+            <p className="text-lg text-slate-600">{sppgData.description}</p>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4">
@@ -261,7 +225,7 @@ export default function ProfilSPPG() {
                   Sekolah yang Dilayani
                 </p>
                 <p className="text-3xl font-bold text-[#136dec]">
-                  {getDisplayValue(sppgData.stats.schoolsServed)}
+                  {sppgData.stats.schoolsServed}
                 </p>
               </div>
               <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-sm text-center">
@@ -269,7 +233,7 @@ export default function ProfilSPPG() {
                   Kapasitas Harian
                 </p>
                 <p className="text-3xl font-bold text-[#136dec]">
-                  {formatNumberValue(sppgData.stats.dailyCapacity)}
+                  {sppgData.stats.dailyCapacity.toLocaleString()}
                 </p>
                 <p className="text-[10px] font-bold uppercase text-slate-400">
                   Meals / Day
@@ -280,7 +244,7 @@ export default function ProfilSPPG() {
                   Staf Pekerja
                 </p>
                 <p className="text-3xl font-bold text-[#136dec]">
-                  {getDisplayValue(sppgData.stats.staffCount)}
+                  {sppgData.stats.staffCount}
                 </p>
               </div>
             </div>
@@ -303,7 +267,7 @@ export default function ProfilSPPG() {
               </h2>
             </div>
             <p className="text-base text-slate-600 leading-relaxed whitespace-pre-wrap">
-              {getDisplayValue(sppgData.longDescription)}
+              {sppgData.longDescription}
             </p>
           </div>
 
@@ -312,17 +276,17 @@ export default function ProfilSPPG() {
             {[
               {
                 title: "Kapasitas Porsi",
-                desc: `${formatNumberValue(sppgData.stats.dailyCapacity)} porsi harian`,
+                desc: "3.000 porsi harian terpenuhi",
                 icon: "👨‍🍳",
               },
               {
                 title: "Total Staf Pekerja",
-                desc: `${getDisplayValue(sppgData.stats.staffCount)} staf`,
+                desc: "12 anggota staf dapur bersertifikat & 2 ahli gizi",
                 icon: "👥",
               },
               {
                 title: "Lingkup",
-                desc: getDisplayValue(sppgData.location),
+                desc: "Kebayoran Baru, Jakarta Selatan",
                 icon: "🗺️",
               },
             ].map((item, idx) => (
@@ -349,7 +313,7 @@ export default function ProfilSPPG() {
               Menu Pekan Ini
             </h2>
             <p className="text-base text-slate-500">
-              {getDisplayValue(sppgData.menuPeriod)}
+              Menu gizi standar untuk Minggu ke-4, Mei 2026
             </p>
           </div>
           <div
@@ -369,23 +333,23 @@ export default function ProfilSPPG() {
                 key={idx}
                 className="relative flex w-[250px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm snap-start"
               >
-                <ImageBox
+                <img
                   src={menu.image}
                   alt={menu.day}
                   className="h-32 w-full object-cover"
                 />
                 <div className="p-4 flex flex-col gap-3">
                   <h3 className="font-bold text-slate-900 text-sm">
-                    {getDisplayValue(menu.title)}
+                    {menu.title}
                   </h3>
                   <ul className="text-sm text-slate-500 space-y-1">
                     {menu.items.map((item, i) => (
-                      <li key={i}>• {getDisplayValue(item)}</li>
+                      <li key={i}>• {item}</li>
                     ))}
                   </ul>
                 </div>
                 <div className="absolute left-3 top-3 rounded bg-[#136dec] px-2 py-1 text-[10px] font-bold text-white">
-                  {getDisplayValue(menu.day)}
+                  {menu.day}
                 </div>
               </div>
             ))}
@@ -406,22 +370,22 @@ export default function ProfilSPPG() {
               },
               {
                 label: "Protein",
-                value: withUnit(sppgData.nutrition.protein, "g"),
+                value: `${sppgData.nutrition.protein}g`,
                 icon: "💪",
               },
               {
                 label: "Karbohidrat",
-                value: withUnit(sppgData.nutrition.carbs, "g"),
+                value: `${sppgData.nutrition.carbs}g`,
                 icon: "🍚",
               },
               {
                 label: "Lemak",
-                value: withUnit(sppgData.nutrition.fat, "g"),
+                value: `${sppgData.nutrition.fat}g`,
                 icon: "❤️",
               },
               {
                 label: "Serat",
-                value: withUnit(sppgData.nutrition.fiber, "g"),
+                value: `${sppgData.nutrition.fiber}g`,
                 icon: "🌿",
               },
             ].map((item, idx) => (
@@ -431,7 +395,7 @@ export default function ProfilSPPG() {
               >
                 <div className="text-2xl">{item.icon}</div>
                 <p className="text-2xl font-bold text-slate-900">
-                  {getDisplayValue(item.value)}
+                  {item.value}
                 </p>
                 <p className="text-xs font-bold uppercase text-slate-400 text-center">
                   {item.label}
@@ -453,20 +417,20 @@ export default function ProfilSPPG() {
                 className="flex h-full flex-col gap-4 p-6 rounded-xl bg-white shadow-md"
               >
                 <div className="flex gap-4">
-                  <ImageBox
+                  <img
                     src={school.image}
                     alt={school.name}
                     className="w-20 h-20 rounded-2xl object-cover"
                   />
                   <div className="flex-1">
-                    <h3 className="font-bold text-slate-900">{getDisplayValue(school.name)}</h3>
+                    <h3 className="font-bold text-slate-900">{school.name}</h3>
                     <div className="flex items-center gap-1 text-sm text-slate-500">
                       <span>📍</span>
-                      <span>{getDisplayValue(school.location)}</span>
+                      <span>{school.location}</span>
                     </div>
                     <div className="flex gap-2 mt-2">
                       <span className="px-2 py-1 rounded-full bg-[#e7f0fd] text-[10px] font-bold text-[#136dec]">
-                        {formatNumberValue(school.siswaTotal)} SISWA
+                        {school.siswaTotal.toLocaleString()} SISWA
                       </span>
                       <span className="px-2 py-1 rounded-full bg-[#e4f8e1] text-[10px] font-bold text-[#2b7d20]">
                         Active
@@ -480,7 +444,7 @@ export default function ProfilSPPG() {
                       Student Count
                     </p>
                     <p className="font-bold text-slate-900">
-                      {getDisplayValue(school.studentCount)} Students
+                      {school.studentCount} Students
                     </p>
                   </div>
                   <button className="text-sm font-bold text-[#136dec] flex items-center gap-1">
@@ -493,6 +457,9 @@ export default function ProfilSPPG() {
           </div>
         </div>
       </div>
+
+      <Footer />
     </div>
   );
 }
+//
