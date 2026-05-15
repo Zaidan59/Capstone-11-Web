@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import iconSekolah from "../../assets/Icon_sekolah.png";
 import iconMap from "../../assets/Icon_map.png";
@@ -8,15 +8,12 @@ import iconMenu from "../../assets/IconMenu.png";
 import iconUnggah from "../../assets/IconUnggah.png";
 import iconCatatan from "../../assets/iconCatatan.png";
 import iconUnggahanTerbaru from "../../assets/IconUnggahanTerbaru.png";
-import menuDefault from "../../assets/MenuDefault.png";
-import menuDefault1 from "../../assets/UnggahanDefault1.png";
-import menuDefault2 from "../../assets/UnggahanDefault2.png";
-import menuDefault3 from "../../assets/UnggahanDefault3.png";
 import iconProfile from "../../assets/icon_profile.png";
 import { uploadImage } from "../../services/mediaService";
 import {
   createSekolahCatatan,
   createSekolahDokumentasi,
+  getAllSekolah,
   getSekolahById,
 } from "../../services/sekolahService";
 import { useAuth } from "../../hooks/useAuth";
@@ -27,29 +24,51 @@ const STORAGE_KEY_DOCS = "simba_dokumentasi_fallback";
 const STORAGE_KEY_NOTES = "simba_catatan_fallback";
 const MAX_DOCS = 20;
 
-const DEFAULT_DOCS = [
-  { foto: menuDefault1, fotoUrl: null, caption: "-", time: "-" },
-  { foto: menuDefault2, fotoUrl: null, caption: "-", time: "-" },
-  { foto: menuDefault3, fotoUrl: null, caption: "-", time: "-" },
-];
+const DEFAULT_DOCS = Array.from({ length: 3 }, () => ({
+  foto: null,
+  fotoUrl: null,
+  caption: "-",
+  time: "-",
+}));
 
-function ImageBox({ src, alt, className }) {
+function ImageBox({ src, alt, className, fallbackSrc = null }) {
   const imageUrl = resolveImageUrl(src);
+  const resolvedSrc = imageUrl || fallbackSrc;
 
-  if (!imageUrl) {
+  if (!resolvedSrc) {
     return (
-      <div className={`flex items-center justify-center bg-slate-100 text-xs font-bold text-slate-400 ${className}`}>
-        -
+      <div className={`flex flex-col items-center justify-center gap-2 bg-slate-100 text-slate-400 ${className}`}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+          <path d="m4 16 4.5-4.5a1 1 0 0 1 1.4 0L13 14.6l1.6-1.6a1 1 0 0 1 1.4 0L20 16.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        <span className="text-[11px] font-semibold">Belum ada gambar</span>
       </div>
     );
   }
 
-  return <img src={imageUrl} alt={alt} className={className} />;
+  return <img src={resolvedSrc} alt={alt} className={className} />;
 }
 
 function getNowLabel() {
   const now = new Date();
   return `${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB - Hari ini`;
+}
+
+function normalizeSekolahData(raw) {
+  if (!raw) return null;
+  return {
+    ...raw,
+    nama: raw?.nama ?? raw?.schoolName ?? "-",
+    alamat: raw?.alamat ?? raw?.address ?? "-",
+    affiliatedKitchen: raw?.affiliatedKitchen ?? raw?.sppgName ?? raw?.sppg?.name ?? "-",
+    menuImage: raw?.menuImage ?? raw?.menu_image_url ?? null,
+    menuMain: raw?.menuMain ?? raw?.mainDish ?? raw?.menu?.mainDish ?? "-",
+    menuSide: raw?.menuSide ?? raw?.sideDish ?? raw?.menu?.sideDish ?? "-",
+    menuCalories: raw?.menuCalories ?? raw?.calories ?? raw?.menu?.calories ?? "-",
+    menuProtein: raw?.menuProtein ?? raw?.protein ?? raw?.menu?.protein ?? "-",
+  };
 }
 
 export default function DashboardSekolah() {
@@ -86,12 +105,19 @@ export default function DashboardSekolah() {
     getSekolahById(sekolahId)
       .then((res) => {
         const payload = res?.data?.data ?? res?.data ?? null;
-        setSekolah(payload);
+        setSekolah(normalizeSekolahData(payload));
       })
-      .catch(() => {
-        setSekolah(null);
+      .catch(async () => {
+        try {
+          const res = await getAllSekolah();
+          const items = Array.isArray(res?.data?.data) ? res.data.data : [];
+          const matched = items.find((item) => item?.id === sekolahId || item?.userId === user?.id) ?? null;
+          setSekolah(normalizeSekolahData(matched));
+        } catch {
+          setSekolah(null);
+        }
       });
-  }, [sekolahId]);
+  }, [sekolahId, user?.id]);
 
   useEffect(() => {
     return () => {
@@ -212,6 +238,16 @@ export default function DashboardSekolah() {
   };
 
   const displayName = user?.name || user?.identifier || "Pengguna Sekolah";
+  const todayLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      }),
+    [],
+  );
 
   return (
     <div className="bg-[#F3F4F6] min-h-screen flex flex-col">
@@ -290,7 +326,7 @@ export default function DashboardSekolah() {
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              Senin, 25 Mei 2026
+              {todayLabel}
             </p>
           </div>
 
@@ -331,7 +367,7 @@ export default function DashboardSekolah() {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-8">
             <div className="flex flex-col md:flex-row">
               <div className="md:w-1/3 lg:w-1/4 h-52 md:h-auto overflow-hidden">
-                <ImageBox src={sekolah?.menuImage || menuDefault} alt="menu" className="w-full h-full object-cover" />
+                <ImageBox src={sekolah?.menuImage} alt="menu" className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 p-6 md:p-8 flex flex-col justify-center">
                 <div className="mb-6">
@@ -437,7 +473,11 @@ export default function DashboardSekolah() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {recentDocs.map((item, i) => (
                 <div key={i} className="bg-white rounded-xl shadow p-3 flex flex-col items-center">
-                  <ImageBox src={item.fotoUrl || item.foto} alt={item.caption} className="w-full h-40 object-cover rounded-lg mb-3" />
+                  <ImageBox
+                    src={item.fotoUrl || item.foto}
+                    alt={item.caption}
+                    className="w-full h-40 object-cover rounded-lg mb-3"
+                  />
                   <div className="font-semibold text-sm">{getDisplayValue(item.caption)}</div>
                   <div className="text-xs text-slate-500 mt-0.5">{getDisplayValue(item.time)}</div>
                 </div>

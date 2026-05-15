@@ -62,18 +62,37 @@ const DEFAULT_NUTRISI = [
 
 const DEFAULT_CATATAN = [];
 
-function ImageBox({ src, alt, className }) {
-  const imageUrl = resolveImageUrl(src);
+function normalizeSekolahData(raw) {
+  if (!raw) return DEFAULT_SEKOLAH;
+  return {
+    ...raw,
+    nama: raw?.nama ?? raw?.schoolName ?? '-',
+    foto: raw?.foto ?? raw?.photoUrl ?? null,
+    status: raw?.status ?? '-',
+    alamat: raw?.alamat ?? raw?.address ?? '-',
+    npsn: raw?.npsn ?? '-',
+    siswa: raw?.siswa ?? raw?.studentCount ?? '-',
+  };
+}
 
-  if (!imageUrl) {
+function ImageBox({ src, alt, className, fallbackSrc = null }) {
+  const imageUrl = resolveImageUrl(src);
+  const resolvedSrc = imageUrl || fallbackSrc;
+
+  if (!resolvedSrc) {
     return (
-      <div className={`flex items-center justify-center bg-slate-100 text-xs font-bold text-slate-400 ${className}`}>
-        -
+      <div className={`flex flex-col items-center justify-center gap-2 bg-slate-100 text-slate-400 ${className}`}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+          <path d="m4 16 4.5-4.5a1 1 0 0 1 1.4 0L13 14.6l1.6-1.6a1 1 0 0 1 1.4 0L20 16.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        <span className="text-[11px] font-semibold">Belum ada gambar</span>
       </div>
     );
   }
 
-  return <img src={imageUrl} alt={alt} className={className} />;
+  return <img src={resolvedSrc} alt={alt} className={className} />;
 }
 
 export default function ProfilSekolah() {
@@ -108,7 +127,7 @@ export default function ProfilSekolah() {
 
         setSekolah(
           resSekolah.status === 'fulfilled'
-            ? (resSekolah.value?.data?.data ?? resSekolah.value?.data ?? DEFAULT_SEKOLAH)
+            ? normalizeSekolahData(resSekolah.value?.data?.data ?? resSekolah.value?.data ?? DEFAULT_SEKOLAH)
             : DEFAULT_SEKOLAH,
         );
         setSppg(

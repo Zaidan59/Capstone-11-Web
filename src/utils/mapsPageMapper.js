@@ -21,6 +21,20 @@ const toNumber = (value) => {
 };
 
 export const mapSppgForMapPage = (item, index) => {
+  const schoolsRaw =
+    item?.schools ?? item?.schoolIds ?? item?.sekolahIds ?? item?.school_ids;
+  const schools =
+    Array.isArray(schoolsRaw)
+      ? schoolsRaw
+          .map((school) =>
+            typeof school === "object" && school !== null
+              ? school?.id ?? school?._id ?? school?.schoolId ?? school?.sekolahId
+              : school,
+          )
+          .filter(Boolean)
+          .map((schoolId) => String(schoolId))
+      : toStringArray(schoolsRaw);
+
   return {
     id: String(item?.id ?? item?._id ?? item?.sppgId ?? `sppg-${index + 1}`),
     name: getDisplayValue(item?.name ?? item?.nama ?? item?.sppgName),
@@ -31,11 +45,17 @@ export const mapSppgForMapPage = (item, index) => {
     info: getDisplayValue(item?.info ?? item?.coverage ?? item?.melayani),
     capacity:
       getDisplayValue(item?.capacity ?? item?.capacityPerDay ?? item?.kapasitas),
+    photoUrl:
+      item?.photoUrl ??
+      item?.photo_url ??
+      item?.imageUrl ??
+      item?.image_url ??
+      item?.logoUrl ??
+      item?.logo_url ??
+      null,
     lat: toNumber(item?.lat),
     lng: toNumber(item?.lng),
-    schools: toStringArray(
-      item?.schools ?? item?.schoolIds ?? item?.sekolahIds ?? item?.school_ids,
-    ),
+    schools,
   };
 };
 
@@ -56,6 +76,14 @@ export const mapSchoolForMapPage = (item, index) => {
           item?.studentsCount ??
           item?.jumlahSiswa,
       ),
+    photoUrl:
+      item?.photoUrl ??
+      item?.photo_url ??
+      item?.imageUrl ??
+      item?.image_url ??
+      item?.logoUrl ??
+      item?.logo_url ??
+      null,
     lat: toNumber(item?.lat),
     lng: toNumber(item?.lng),
     sppgId:

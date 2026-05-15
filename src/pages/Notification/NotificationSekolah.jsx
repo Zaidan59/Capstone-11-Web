@@ -4,12 +4,24 @@ import logo from "../../assets/Logo.png";
 import iconProfile from "../../assets/icon_profile.png";
 import { useAuth } from "../../hooks/useAuth";
 import { getNotificationsBySchoolId } from "../../services/notificationService";
+import { getDisplayValue } from "../../utils/display";
 import { resolveImageUrl } from "../../utils/imageUrl";
 
 import iconPengiriman    from "../../assets/icon_pengiriman.png";
 import iconVerifPengiriman from "../../assets/Icon_Verifikasi.png";
 import iconMenu          from "../../assets/Icon_Menu.png";
 import iconVerifikasi    from "../../assets/Icon_Verif.png";
+
+function normalizeSekolahData(raw) {
+  if (!raw) return null;
+  return {
+    ...raw,
+    nama: raw?.nama ?? raw?.schoolName ?? "-",
+    kota: raw?.kota ?? raw?.city ?? "-",
+    jumlahSiswa: raw?.jumlahSiswa ?? raw?.studentCount ?? null,
+    foto: raw?.foto ?? raw?.photoUrl ?? null,
+  };
+}
 
 function IconBell({ hasUnread }) {
   return (
@@ -58,13 +70,13 @@ function NotifCard({ notif }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-3">
           <p className="text-[16px] font-bold text-slate-900 leading-snug">
-            {notif.judul}
+            {getDisplayValue(notif.judul)}
           </p>
           <span className="text-[12px] text-slate-400 whitespace-nowrap flex-shrink-0 mt-0.5">
-            {notif.waktu}
+            {getDisplayValue(notif.waktu)}
           </span>
         </div>
-        <p className="text-[14px] text-slate-500 mt-1 leading-relaxed">{notif.deskripsi}</p>
+        <p className="text-[14px] text-slate-500 mt-1 leading-relaxed">{getDisplayValue(notif.deskripsi)}</p>
         {notif.actionLabel && (
           <button className="mt-3 inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
             {notif.actionLabel}
@@ -78,8 +90,16 @@ function NotifCard({ notif }) {
   );
 }
 
-function RightSidebar({ sekolah }) {
+function RightSidebar({ sekolah, totalNotifications, reviewedNotifications }) {
   const sekolahPhoto = resolveImageUrl(sekolah?.foto);
+  const reviewedRatio =
+    totalNotifications > 0
+      ? `${Math.round((reviewedNotifications / totalNotifications) * 100)}%`
+      : "-";
+  const reviewedLabel =
+    totalNotifications > 0
+      ? `${reviewedNotifications}/${totalNotifications} ditinjau`
+      : "Belum tersedia";
 
   return (
     <div className="space-y-4">
@@ -91,13 +111,13 @@ function RightSidebar({ sekolah }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="text-center">
             <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1">Pengiriman</p>
-            <p className="text-[24px] font-bold text-blue-600">98%</p>
-            <p className="text-[10px] text-[#059669] font-semibold mt-0.5">On-time</p>
+            <p className="text-[24px] font-bold text-blue-600">{totalNotifications}</p>
+            <p className="text-[10px] text-[#059669] font-semibold mt-0.5">Notifikasi</p>
           </div>
           <div className="text-center">
             <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1">Akurasi</p>
-            <p className="text-[24px] font-bold text-blue-600">100%</p>
-            <p className="text-[10px] text-[#059669] font-semibold mt-0.5">Verified</p>
+            <p className="text-[24px] font-bold text-blue-600">{reviewedRatio}</p>
+            <p className="text-[10px] text-[#059669] font-semibold mt-0.5">{reviewedLabel}</p>
           </div>
         </div>
       </div>
@@ -109,10 +129,10 @@ function RightSidebar({ sekolah }) {
               <img src={sekolahPhoto} alt="Gedung Sekolah" className="w-full h-full object-cover" />
               <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 bg-gradient-to-t from-black/60 to-transparent pt-8">
                 <p className="text-white font-bold text-[14px] leading-tight">
-                  {sekolah?.nama || "SMP Negeri 115 Jakarta"}
+                  {getDisplayValue(sekolah?.nama)}
                 </p>
                 <p className="text-white/70 text-[10px] mt-0.5">
-                  {sekolah?.id ? `ID: ${sekolah.id}` : "ID: 2024-KBY-01"}
+                  {sekolah?.id ? `ID: ${sekolah.id}` : "ID: -"}
                 </p>
               </div>
             </div>
@@ -120,10 +140,10 @@ function RightSidebar({ sekolah }) {
             <div className="w-full h-full bg-gradient-to-br from-slate-400 via-slate-500 to-slate-700 flex items-end">
               <div className="w-full px-4 pb-3 bg-gradient-to-t from-black/50 to-transparent pt-8">
                 <p className="text-white font-bold text-[14px] leading-tight">
-                  {sekolah?.nama || "SMP Negeri 115 Jakarta"}
+                  {getDisplayValue(sekolah?.nama)}
                 </p>
                 <p className="text-white/70 text-[10px] mt-0.5">
-                  {sekolah?.id ? `ID: ${sekolah.id}` : "ID: 2024-KBY-01"}
+                  {sekolah?.id ? `ID: ${sekolah.id}` : "ID: -"}
                 </p>
               </div>
             </div>
@@ -136,13 +156,13 @@ function RightSidebar({ sekolah }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
-            {sekolah?.kota || "Jakarta Selatan, DKI Jakarta"}
+            {getDisplayValue(sekolah?.kota)}
           </div>
           <div className="flex items-center gap-2 text-[12px] text-slate-500">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
             </svg>
-            {sekolah?.jumlahSiswa ? `${sekolah.jumlahSiswa} Siswa Terdaftar` : "450 Siswa Terdaftar"}
+            {sekolah?.jumlahSiswa ? `${sekolah.jumlahSiswa} Siswa Terdaftar` : "-"}
           </div>
         </div>
       </div>
@@ -173,7 +193,7 @@ export default function NotificationSekolah() {
   const profileId = sekolahId;
   const hasSekolahId = Boolean(sekolahId);
   const [notifs, setNotifs] = useState([]);
-  const sekolah = user?.school ?? user?.sekolah ?? null;
+  const sekolah = normalizeSekolahData(user?.school ?? user?.sekolah ?? null);
   const [loading, setLoading] = useState(hasSekolahId);
   const [error, setError] = useState(hasSekolahId ? '' : 'ID sekolah belum tersedia.');
 
@@ -201,27 +221,55 @@ export default function NotificationSekolah() {
   }, [sekolahId]);
 
   const formatTime = (value) => {
-    if (!value) return '';
+    if (!value) return '-';
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
+    if (Number.isNaN(date.getTime())) return '-';
     return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const normalizedNotifs = notifs.map((item, index) => ({
-    id: item?.id ?? `${item?.type ?? 'notif'}-${item?.createdAt ?? 'unknown'}-${index}`,
-    type: item?.type ?? 'info',
-    judul: item?.title ?? item?.judul ?? 'Notifikasi',
-    deskripsi: item?.message ?? item?.deskripsi ?? 'Detail notifikasi belum tersedia.',
-    waktu: item?.createdAt ? formatTime(item.createdAt) : '-',
-    isRead: item?.status && item.status !== 'new',
-    actionLabel: null,
-  }));
+  const normalizedNotifs = notifs.map((item, index) => {
+    const parsedDate = item?.createdAt ? new Date(item.createdAt) : null;
+    const isValidDate = parsedDate && !Number.isNaN(parsedDate.getTime());
 
+    return {
+      id: item?.id ?? `${item?.type ?? 'notif'}-${item?.createdAt ?? 'unknown'}-${index}`,
+      parsedDate: isValidDate ? parsedDate : null,
+      type: item?.type ?? 'info',
+      judul: item?.title ?? item?.judul ?? '-',
+      deskripsi: item?.message ?? item?.deskripsi ?? '-',
+      waktu: isValidDate ? formatTime(item.createdAt) : '-',
+      isRead: item?.status && item.status !== 'new',
+      actionLabel: null,
+    };
+  });
+
+  const totalNotifications = normalizedNotifs.length;
+  const reviewedNotifications = normalizedNotifs.filter((n) => n.isRead).length;
   const hasUnread = normalizedNotifs.some(n => !n.isRead);
 
-  const todayNotifs = normalizedNotifs.filter(n => n.waktu && n.waktu !== '-');
-  const yesterdayNotifs = [];
-  const olderNotifs = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  const todayNotifs = normalizedNotifs.filter((n) => {
+    if (!n.parsedDate) return false;
+    const cmp = new Date(n.parsedDate);
+    cmp.setHours(0, 0, 0, 0);
+    return cmp.getTime() === today.getTime();
+  });
+  const yesterdayNotifs = normalizedNotifs.filter((n) => {
+    if (!n.parsedDate) return false;
+    const cmp = new Date(n.parsedDate);
+    cmp.setHours(0, 0, 0, 0);
+    return cmp.getTime() === yesterday.getTime();
+  });
+  const olderNotifs = normalizedNotifs.filter((n) => {
+    if (!n.parsedDate) return true;
+    const cmp = new Date(n.parsedDate);
+    cmp.setHours(0, 0, 0, 0);
+    return cmp.getTime() < yesterday.getTime();
+  });
 
   return (
     <div className="bg-[#F3F4F6] min-h-screen flex flex-col">
@@ -265,7 +313,7 @@ export default function NotificationSekolah() {
                 <p className="text-[16px] text-slate-500 mt-1">
                   Pembaruan operasional dan informasi pengiriman untuk{" "}
                   <span className="font-medium text-slate-700">
-                    {sekolah?.nama || "SMP Negeri 115 Jakarta"}
+                    {getDisplayValue(sekolah?.nama)}
                   </span>
                 </p>
               </div>
@@ -341,7 +389,11 @@ export default function NotificationSekolah() {
             </div>
 
             <div className="lg:w-72 xl:w-80 flex-shrink-0">
-              <RightSidebar sekolah={sekolah} />
+              <RightSidebar
+                sekolah={sekolah}
+                totalNotifications={totalNotifications}
+                reviewedNotifications={reviewedNotifications}
+              />
             </div>
 
           </div>

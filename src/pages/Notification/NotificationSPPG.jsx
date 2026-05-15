@@ -10,6 +10,7 @@ import logo from '../../assets/Logo.png';
 import iconProfile from '../../assets/icon_profile.png';
 import { useAuth } from '../../hooks/useAuth';
 import { getNotificationsBySppgId } from '../../services/notificationService';
+import { getSPPGById } from '../../services/sppgService';
 import { getDisplayValue } from '../../utils/display';
 
 const statusStyles = {
@@ -43,6 +44,7 @@ const NotificationSPPG = () => {
   const profileId = user?.sppgId || user?.id || null;
   const hasSppgId = Boolean(sppgId);
   const [notifications, setNotifications] = useState([]);
+  const [sppgProfile, setSppgProfile] = useState(null);
   const [loading, setLoading] = useState(hasSppgId);
   const [error, setError] = useState(hasSppgId ? '' : 'ID SPPG belum tersedia.');
 
@@ -56,14 +58,18 @@ const NotificationSPPG = () => {
       .then(() => {
         setLoading(true);
         setError('');
-        return getNotificationsBySppgId(sppgId);
+        return Promise.all([getNotificationsBySppgId(sppgId), getSPPGById(sppgId)]);
       })
-      .then((res) => {
-        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
+      .then(([notificationsRes, profileRes]) => {
+        const data = Array.isArray(notificationsRes?.data?.data)
+          ? notificationsRes.data.data
+          : [];
         setNotifications(data);
+        setSppgProfile(profileRes?.data?.data ?? null);
       })
       .catch(() => {
         setNotifications([]);
+        setSppgProfile(null);
         setError('Gagal memuat notifikasi.');
       })
       .finally(() => setLoading(false));
@@ -94,6 +100,18 @@ const NotificationSPPG = () => {
   );
   const pendingCount = mappedNotifications.filter((item) => item.statusLabel === 'Baru').length;
   const totalTodayCount = mappedNotifications.length;
+  const resolvedCount = mappedNotifications.filter((item) => item.statusLabel === 'Ditinjau').length;
+  const sppgName = getDisplayValue(sppgProfile?.name, displayName);
+  const sppgAddress = getDisplayValue(sppgProfile?.address);
+  const operationDateLabel = useMemo(
+    () =>
+      new Date().toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      }),
+    [],
+  );
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col font-sans">
@@ -133,17 +151,17 @@ const NotificationSPPG = () => {
           {/* Header */}
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex justify-between items-center mb-10">
             <div>
-              <h1 className="text-2xl font-bold text-[#1A2B4C]">SPPG Kebayoran Baru</h1>
+              <h1 className="text-2xl font-bold text-[#1A2B4C]">{sppgName}</h1>
               <p className="text-gray-400 flex items-center mt-1 text-sm">
                 <img src={IconMap} className="w-4 mr-2 grayscale opacity-50" alt="map" />
-                Jakarta Selatan, Indonesia
+                {sppgAddress}
               </p>
             </div>
             <div className="bg-[#F4F8FF] px-6 py-3 rounded-xl flex items-center border border-blue-50">
               <img src={IconCalendar} className="w-8 mr-4" alt="calendar" />
               <div>
                 <p className="text-[10px] font-bold text-blue-400 uppercase">Tanggal Operasional</p>
-                <p className="text-sm font-extrabold text-[#1A2B4C]">SENIN, 25 MEI 2026</p>
+                <p className="text-sm font-extrabold text-[#1A2B4C]">{operationDateLabel}</p>
               </div>
             </div>
           </div>
@@ -218,8 +236,8 @@ const NotificationSPPG = () => {
                 <img src={IconTime} className="w-6" alt="time" />
               </div>
               <p className="text-gray-400 text-sm mb-1">Waktu Respon Rata - Rata</p>
-              <h4 className="text-2xl font-black text-[#1A2B4C] mb-2">18 min</h4>
-              <p className="text-[#10B981] text-sm font-medium">+12% lebih cepat dari minggu lalu</p>
+              <h4 className="text-2xl font-black text-[#1A2B4C] mb-2">-</h4>
+              <p className="text-[#10B981] text-sm font-medium">Belum tersedia</p>
             </div>
 
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
@@ -227,8 +245,8 @@ const NotificationSPPG = () => {
                 <img src={IconCentang} className="w-6" alt="done" />
               </div>
               <p className="text-gray-400 text-sm mb-1">Terselesaikan</p>
-              <h4 className="text-2xl font-black text-[#1A2B4C] mb-2">9 / 12</h4>
-              <p className="text-gray-400 text-sm">3 sekolah tertunda untuk ditinjau</p>
+              <h4 className="text-2xl font-black text-[#1A2B4C] mb-2">{resolvedCount} / {totalTodayCount}</h4>
+              <p className="text-gray-400 text-sm">{pendingCount} sekolah tertunda untuk ditinjau</p>
             </div>
           </div>
 

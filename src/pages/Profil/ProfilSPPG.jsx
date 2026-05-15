@@ -1,6 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useRef, useState, useEffect } from "react";
-import ProfilSPPGImage from "../../assets/ProfilSPPG.png";
 import { formatNumberValue, getDisplayValue } from "../../utils/display";
 import { resolveImageUrl } from "../../utils/imageUrl";
 import { getSPPGById } from "../../services/sppgService";
@@ -8,6 +7,7 @@ import { getSPPGById } from "../../services/sppgService";
 const emptySppg = {
   id: null,
   name: "-",
+  image: null,
   location: "-",
   description: "-",
   longDescription: "-",
@@ -34,13 +34,23 @@ const emptySppg = {
   schools: [],
 };
 
+const withUnit = (value, unit) => {
+  if (value === null || value === undefined || value === "") return "-";
+  return `${value}${unit}`;
+};
+
 function ImageBox({ src, alt, className }) {
   const imageUrl = resolveImageUrl(src);
 
   if (!imageUrl) {
     return (
-      <div className={`flex items-center justify-center bg-slate-100 text-xs font-bold text-slate-400 ${className}`}>
-        -
+      <div className={`flex flex-col items-center justify-center gap-2 bg-slate-100 text-slate-400 ${className}`}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.5" />
+          <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+          <path d="m4 16 4.5-4.5a1 1 0 0 1 1.4 0L13 14.6l1.6-1.6a1 1 0 0 1 1.4 0L20 16.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+        <span className="text-[11px] font-semibold">Belum ada gambar</span>
       </div>
     );
   }
@@ -132,6 +142,14 @@ export default function ProfilSPPG() {
           ...emptySppg,
           id: data?.id ?? null,
           name: data?.name ?? "-",
+          image:
+            data?.photoUrl ??
+            data?.photo_url ??
+            data?.imageUrl ??
+            data?.image_url ??
+            data?.logoUrl ??
+            data?.logo_url ??
+            null,
           location: data?.address ?? "-",
           description: data?.description ?? "-",
           longDescription: data?.longDescription ?? "-",
@@ -196,7 +214,7 @@ export default function ProfilSPPG() {
           {/* Left: Image */}
           <div className="rounded-xl overflow-hidden shadow-sm border border-slate-200">
             <ImageBox
-              src={sppgData.image || ProfilSPPGImage}
+              src={sppgData.image}
               alt={sppgData.name}
               className="w-full h-full md:h-80 object-cover"
             />
@@ -294,17 +312,17 @@ export default function ProfilSPPG() {
             {[
               {
                 title: "Kapasitas Porsi",
-                desc: "3.000 porsi harian terpenuhi",
+                desc: `${formatNumberValue(sppgData.stats.dailyCapacity)} porsi harian`,
                 icon: "👨‍🍳",
               },
               {
                 title: "Total Staf Pekerja",
-                desc: "12 anggota staf dapur bersertifikat & 2 ahli gizi",
+                desc: `${getDisplayValue(sppgData.stats.staffCount)} staf`,
                 icon: "👥",
               },
               {
                 title: "Lingkup",
-                desc: "Kebayoran Baru, Jakarta Selatan",
+                desc: getDisplayValue(sppgData.location),
                 icon: "🗺️",
               },
             ].map((item, idx) => (
@@ -331,7 +349,7 @@ export default function ProfilSPPG() {
               Menu Pekan Ini
             </h2>
             <p className="text-base text-slate-500">
-              Menu gizi standar untuk Minggu ke-4, Mei 2026
+              {getDisplayValue(sppgData.menuPeriod)}
             </p>
           </div>
           <div
@@ -388,22 +406,22 @@ export default function ProfilSPPG() {
               },
               {
                 label: "Protein",
-                value: `${sppgData.nutrition.protein}g`,
+                value: withUnit(sppgData.nutrition.protein, "g"),
                 icon: "💪",
               },
               {
                 label: "Karbohidrat",
-                value: `${sppgData.nutrition.carbs}g`,
+                value: withUnit(sppgData.nutrition.carbs, "g"),
                 icon: "🍚",
               },
               {
                 label: "Lemak",
-                value: `${sppgData.nutrition.fat}g`,
+                value: withUnit(sppgData.nutrition.fat, "g"),
                 icon: "❤️",
               },
               {
                 label: "Serat",
-                value: `${sppgData.nutrition.fiber}g`,
+                value: withUnit(sppgData.nutrition.fiber, "g"),
                 icon: "🌿",
               },
             ].map((item, idx) => (
@@ -478,4 +496,3 @@ export default function ProfilSPPG() {
     </div>
   );
 }
-//

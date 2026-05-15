@@ -19,6 +19,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import { useMapsPage } from "../../../hooks/useMapsPage";
+import { resolveImageUrl } from "../../../utils/imageUrl";
 
 const defaultCenter = [-6.225, 106.795];
 
@@ -105,6 +106,7 @@ function PopupCard({ item, point, onClose }) {
 
   const isSppg = item.type === "sppg";
   const profileLabel = isSppg ? "Lihat Profil SPPG" : "Lihat Profil Sekolah";
+  const imageUrl = resolveImageUrl(item?.photoUrl);
 
   return (
     <article
@@ -113,7 +115,11 @@ function PopupCard({ item, point, onClose }) {
     >
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="h-[128px] bg-[linear-gradient(135deg,#f8f6ef_0%,#e7dac8_50%,#c7b59c_100%)]">
-          <div className="h-full w-full bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_36%)]" />
+          {imageUrl ? (
+            <img src={imageUrl} alt={item.name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="h-full w-full bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_36%)]" />
+          )}
         </div>
 
         <div className="p-4">
@@ -248,12 +254,19 @@ export default function Maps() {
     if (!selectedItem) return [];
 
     if (selectedItem.type === "sppg") {
-      return selectedItem.schools
-        .map((schoolId) =>
-          validSchoolItems.find((school) => school.id === schoolId),
-        )
-        .filter(Boolean)
-        .map((school) => [getPosition(selectedItem), getPosition(school)]);
+      const linkedSchools =
+        Array.isArray(selectedItem.schools) && selectedItem.schools.length > 0
+          ? selectedItem.schools
+              .map((schoolId) =>
+                validSchoolItems.find((school) => school.id === schoolId),
+              )
+              .filter(Boolean)
+          : validSchoolItems.filter((school) => school.sppgId === selectedItem.id);
+
+      return linkedSchools.map((school) => [
+        getPosition(selectedItem),
+        getPosition(school),
+      ]);
     }
 
     const sppg = validSppgItems.find((item) => item.id === selectedItem.sppgId);

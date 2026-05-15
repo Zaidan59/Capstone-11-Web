@@ -29,8 +29,16 @@ export function useDashboardPemantauan() {
           ? schoolResponse.data
           : [];
 
+        const sppgById = Object.fromEntries(
+          sppgData
+            .filter((item) => item?.id)
+            .map((item) => [item.id, item]),
+        );
+
         const mappedSppg = sppgData.map(mapSppgItem);
-        const mappedSchool = schoolData.map(mapSchoolItem);
+        const mappedSchool = schoolData.map((item, index) =>
+          mapSchoolItem(item, index, sppgById),
+        );
 
         setSppgUnits(mappedSppg);
         setSchoolUnits(mappedSchool);

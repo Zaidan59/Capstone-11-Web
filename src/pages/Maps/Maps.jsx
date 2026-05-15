@@ -12,7 +12,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import { useMapsPage } from "../../hooks/useMapsPage";
-import NavBar from "../../components/common/NavBar";
+import NavBar from "../../components/common/Navbar";
 
 const defaultCenter = [-6.225, 106.795];
 const filters = [

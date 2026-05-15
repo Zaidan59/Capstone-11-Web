@@ -14,6 +14,7 @@ import logo from "../../assets/Logo.png";
 import IconProfile from "../../assets/Icon_profile.png";
 import { useAuth } from '../../hooks/useAuth';
 import { getSPPGById } from '../../services/sppgService';
+import { getNotificationsBySppgId } from '../../services/notificationService';
 import { getDisplayValue } from '../../utils/display';
 
 const DashboardSPPG = () => {
@@ -28,6 +29,7 @@ const DashboardSPPG = () => {
   const [error, setError] = useState(hasSppgId ? '' : 'ID SPPG belum tersedia.');
   const [uploadedFile, setUploadedFile] = useState(null);
   const [menuData, setMenuData] = useState([]);
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     if (!sppgId) {
@@ -37,17 +39,22 @@ const DashboardSPPG = () => {
       .then(() => {
         setLoading(true);
         setError('');
-        return getSPPGById(sppgId);
+        return Promise.all([getSPPGById(sppgId), getNotificationsBySppgId(sppgId)]);
       })
-      .then((res) => {
-        const data = res?.data?.data ?? null;
+      .then(([sppgRes, notificationRes]) => {
+        const data = sppgRes?.data?.data ?? null;
+        const notifData = Array.isArray(notificationRes?.data?.data)
+          ? notificationRes.data.data
+          : [];
         setSppgData(data);
         setServedSchools(Array.isArray(data?.schools) ? data.schools : []);
+        setNotifications(notifData);
         setMenuData([]);
       })
       .catch(() => {
         setSppgData(null);
         setServedSchools([]);
+        setNotifications([]);
         setMenuData([]);
         setError('Gagal memuat data SPPG.');
       })
@@ -59,6 +66,41 @@ const DashboardSPPG = () => {
   const sppgStatus = getDisplayValue(sppgData?.status);
   const displayName = user?.name || user?.identifier || 'Admin SPPG';
   const schoolCount = servedSchools.length > 0 ? servedSchools.length : '-';
+  const uploadPreviewItems =
+    servedSchools.length > 0
+      ? servedSchools.slice(0, 4).map((school) => ({
+          school: getDisplayValue(school?.schoolName ?? school?.name),
+          time: '-',
+          img: null,
+        }))
+      : [{ school: '-', time: '-', img: null }];
+  const feedbackItems =
+    notifications.length > 0
+      ? notifications.slice(0, 3).map((item) => ({
+          title: getDisplayValue(item?.type),
+          time: item?.createdAt
+            ? new Date(item.createdAt).toLocaleString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '-',
+          desc: getDisplayValue(item?.message),
+          school: getDisplayValue(item?.schoolName),
+          variant: item?.status === 'new' ? 'warning' : item?.status === 'reviewed' ? 'success' : 'info',
+        }))
+      : [
+          {
+            title: '-',
+            time: '-',
+            desc: '-',
+            school: '-',
+            variant: 'info',
+          },
+        ];
+  const nutritionCoverage = menuData.length > 0 ? '100%' : '-';
+  const nutritionBarWidth = menuData.length > 0 ? '100%' : '0%';
   const todayLabel = useMemo(
     () =>
       new Date().toLocaleDateString('id-ID', {
@@ -265,12 +307,12 @@ const DashboardSPPG = () => {
                 <div className="rounded-xl p-5 space-y-3" style={{ backgroundColor: '#136DEC0D', border: '1px solid #136DEC1A' }}>
                   <div className="flex justify-between items-center">
                     <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recent Upload Score</p>
-                    <span className="text-sm font-bold text-green-500">VALID</span>
+                    <span className="text-sm font-bold text-green-500">{nutritionCoverage === '-' ? '-' : 'VALID'}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: '85%' }} />
+                    <div className="bg-blue-600 h-2 rounded-full" style={{ width: nutritionBarWidth }} />
                   </div>
-                  <p className="text-sm text-gray-500">Data Coverage: 85%</p>
+                  <p className="text-sm text-gray-500">Data Coverage: {nutritionCoverage}</p>
                 </div>
               </div>
             </div>
@@ -335,19 +377,18 @@ const DashboardSPPG = () => {
             <div className="space-y-4">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Today's Uploads</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { school: 'SDN 01 Kebayoran', time: '10:30 AM', img: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=800&q=100' },
-                  { school: 'SMPN 12 Jakarta', time: '10:45 AM', img: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=800&q=100' },
-                  { school: 'SDN 05 Petogogan', time: '11:00 AM', img: 'https://images.unsplash.com/photo-1565299507177-b0ac66763828?w=800&q=100' },
-                  { school: 'General Prep', time: '09:15 AM', img: 'https://images.unsplash.com/photo-1490645935967-10de6ba17061?w=800&q=100' },
-                ].map((item, i) => (
+                {uploadPreviewItems.map((item, i) => (
                   <div key={i} className="rounded-xl overflow-hidden border border-gray-200">
                     <div className="aspect-square w-full overflow-hidden">
-                      <img src={item.img} alt={item.school} className="w-full h-full object-cover" />
+                      {item.img ? (
+                        <img src={item.img} alt={item.school} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400 text-sm font-semibold">-</div>
+                      )}
                     </div>
                     <div className="p-3">
-                      <p className="text-sm font-semibold text-blue-500">{item.school}</p>
-                      <p className="text-xs text-gray-400">{item.time}</p>
+                      <p className="text-sm font-semibold text-blue-500">{getDisplayValue(item.school)}</p>
+                      <p className="text-xs text-gray-400">{getDisplayValue(item.time)}</p>
                     </div>
                   </div>
                 ))}
@@ -364,47 +405,40 @@ const DashboardSPPG = () => {
           {/* SCHOOL FEEDBACK CARD */}
           <div className="px-16 pb-10">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex gap-4" style={{ borderLeft: '4px solid #EF4444' }}>
-                <div className="flex-shrink-0 mt-0.5">
-                  <img src={IconWarning} alt="Warning" className="w-6 h-6 object-contain" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <p className="font-bold text-gray-900">Meal arrived late</p>
-                    <span className="text-xs text-gray-400 whitespace-nowrap ml-4">12:30 PM</span>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">Delivery arrived at 12:15 PM instead of the planned 11:30 AM.</p>
-                  <p className="text-sm font-semibold text-blue-500 mt-2">SDN 01 Kebayoran Baru</p>
-                </div>
-              </div>
+              {feedbackItems.map((item, index) => {
+                const borderColor =
+                  item.variant === 'warning'
+                    ? '#EF4444'
+                    : item.variant === 'success'
+                    ? '#10B981'
+                    : '#3B82F6';
+                const icon =
+                  item.variant === 'warning'
+                    ? IconWarning
+                    : item.variant === 'success'
+                    ? IconCeklis
+                    : IconFeedback;
 
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex gap-4" style={{ borderLeft: '4px solid #10B981' }}>
-                <div className="flex-shrink-0 mt-0.5">
-                  <img src={IconCeklis} alt="Ceklis" className="w-6 h-6 object-contain" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <p className="font-bold text-gray-900">Menu matches plan</p>
-                    <span className="text-xs text-gray-400 whitespace-nowrap ml-4">11:50 AM</span>
+                return (
+                  <div
+                    key={`${item.title}-${index}`}
+                    className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex gap-4"
+                    style={{ borderLeft: `4px solid ${borderColor}` }}
+                  >
+                    <div className="flex-shrink-0 mt-0.5">
+                      <img src={icon} alt="Feedback" className="w-6 h-6 object-contain" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <p className="font-bold text-gray-900">{getDisplayValue(item.title)}</p>
+                        <span className="text-xs text-gray-400 whitespace-nowrap ml-4">{getDisplayValue(item.time)}</span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1">{getDisplayValue(item.desc)}</p>
+                      <p className="text-sm font-semibold text-blue-500 mt-2">{getDisplayValue(item.school)}</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">All 150 portions received and quality approved by school staff.</p>
-                  <p className="text-sm font-semibold text-blue-500 mt-2">SMPN 12 Jakarta</p>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex gap-4" style={{ borderLeft: '4px solid #3B82F6' }}>
-                <div className="flex-shrink-0 mt-0.5">
-                  <img src={IconFeedback} alt="Feedback" className="w-6 h-6 object-contain" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <p className="font-bold text-gray-900">Feedback: Portion Size</p>
-                    <span className="text-xs text-gray-400 whitespace-nowrap ml-4">Yesterday</span>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1">Students really liked the stir-fry but suggested more broccoli next time.</p>
-                  <p className="text-sm font-semibold text-blue-500 mt-2">SDN 05 Petogogan</p>
-                </div>
-              </div>
+                );
+              })}
 
               <div className="bg-gray-50 rounded-xl border border-gray-200 shadow-sm p-5 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-all">
                 <p className="text-base font-bold text-gray-900">View History →</p>
