@@ -12,7 +12,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import { useMapsPage } from "../../hooks/useMapsPage";
-import NavBar from "../../components/common/NavBar";
+import NavBar from "../../components/common/Navbar";
 
 const defaultCenter = [-6.225, 106.795];
 const filters = [
@@ -92,7 +92,7 @@ function SearchBar({ items, onSelect }) {
   }, [items, query]);
 
   return (
-    <div className="absolute left-5 top-5 z-[500] w-[min(360px,calc(100vw-40px))]">
+    <div className="absolute left-5 top-16 z-[500] w-[min(360px,calc(100vw-40px))]">
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.14)]">
         <div className="flex h-12 items-center gap-3 px-4">
           <FiSearch className="h-5 w-5 text-slate-400" />
@@ -140,7 +140,7 @@ function SearchBar({ items, onSelect }) {
 
 function FilterBar({ value, onChange }) {
   return (
-    <div className="absolute left-[410px] top-5 z-[500] flex rounded-xl border border-slate-200 bg-white p-1 shadow-[0_12px_30px_rgba(15,23,42,0.14)]">
+    <div className="absolute left-[410px] top-16 z-[500] flex rounded-xl border border-slate-200 bg-white p-1 shadow-[0_12px_30px_rgba(15,23,42,0.14)]">
       {filters.map((filter) => (
         <button
           key={filter.value}
@@ -293,7 +293,7 @@ export default function Maps() {
     sppgItems: sppgData,
     schoolItems: schoolData,
     isLoading,
-    isUsingFallback,
+    error,
   } = useMapsPage();
   const [filter, setFilter] = useState("all");
   const [selected, setSelected] = useState(null);
@@ -315,6 +315,7 @@ export default function Maps() {
     () => schoolItems.filter(hasValidLatLng),
     [schoolItems],
   );
+  const hasItems = validSppgItems.length > 0 || validSchoolItems.length > 0;
   const allItems = useMemo(
     () => [...sppgItems, ...schoolItems],
     [schoolItems, sppgItems],
@@ -417,9 +418,14 @@ export default function Maps() {
             Memuat data peta...
           </div>
         ) : null}
-        {isUsingFallback ? (
-          <div className="absolute right-5 top-16 z-[500] rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
-            Menampilkan data contoh
+        {error ? (
+          <div className="absolute right-5 top-16 z-[500] rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-700 shadow">
+            {error}
+          </div>
+        ) : null}
+        {!isLoading && !error && !hasItems ? (
+          <div className="absolute right-5 top-16 z-[500] rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 shadow">
+            Data peta belum tersedia
           </div>
         ) : null}
       </main>
