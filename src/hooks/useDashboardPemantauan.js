@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
 import { getAllSPPG } from "../services/sppgService";
 import { getAllSekolah } from "../services/sekolahService";
-import { mapSchoolItem, mapSppgItem } from "../utils/dashboardPemantauanMapper";
+import {
+  fallbackSchoolUnits,
+  fallbackSppgUnits,
+} from "../pages/Homepage/components/DashboardPemantauan.data";
+import {
+  mapSchoolItem,
+  mapSppgItem,
+} from "../utils/dashboardPemantauanMapper";
 
 export function useDashboardPemantauan() {
-  const [sppgUnits, setSppgUnits] = useState([]);
-  const [schoolUnits, setSchoolUnits] = useState([]);
+  const [sppgUnits, setSppgUnits] = useState(fallbackSppgUnits);
+  const [schoolUnits, setSchoolUnits] = useState(fallbackSchoolUnits);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [isUsingFallback, setIsUsingFallback] = useState(false);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -29,25 +36,29 @@ export function useDashboardPemantauan() {
           ? schoolResponse.data
           : [];
 
-        const sppgById = Object.fromEntries(
-          sppgData
-            .filter((item) => item?.id)
-            .map((item) => [item.id, item]),
-        );
-
         const mappedSppg = sppgData.map(mapSppgItem);
-        const mappedSchool = schoolData.map((item, index) =>
-          mapSchoolItem(item, index, sppgById),
-        );
+        const mappedSchool = schoolData.map(mapSchoolItem);
+        const hasApiData = mappedSppg.length > 0 || mappedSchool.length > 0;
 
-        setSppgUnits(mappedSppg);
-        setSchoolUnits(mappedSchool);
-        setError(null);
+        if (hasApiData) {
+          if (mappedSppg.length > 0) {
+            setSppgUnits(mappedSppg);
+          }
+          if (mappedSchool.length > 0) {
+            setSchoolUnits(mappedSchool);
+          }
+          setIsUsingFallback(false);
+          return;
+        }
+
+        setSppgUnits(fallbackSppgUnits);
+        setSchoolUnits(fallbackSchoolUnits);
+        setIsUsingFallback(true);
       } catch (error) {
         console.error("Gagal mengambil data dashboard:", error);
-        setSppgUnits([]);
-        setSchoolUnits([]);
-        setError("Gagal mengambil data dashboard.");
+        setSppgUnits(fallbackSppgUnits);
+        setSchoolUnits(fallbackSchoolUnits);
+        setIsUsingFallback(true);
       } finally {
         setIsLoading(false);
       }
@@ -60,6 +71,6 @@ export function useDashboardPemantauan() {
     sppgUnits,
     schoolUnits,
     isLoading,
-    error,
+    isUsingFallback,
   };
 }
