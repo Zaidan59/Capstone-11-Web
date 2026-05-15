@@ -1,5 +1,3 @@
-import { getDisplayValue } from "./display";
-
 const toStringArray = (value) => {
   if (Array.isArray(value)) {
     return value.map((item) => String(item));
@@ -21,69 +19,47 @@ const toNumber = (value) => {
 };
 
 export const mapSppgForMapPage = (item, index) => {
-  const schoolsRaw =
-    item?.schools ?? item?.schoolIds ?? item?.sekolahIds ?? item?.school_ids;
-  const schools =
-    Array.isArray(schoolsRaw)
-      ? schoolsRaw
-          .map((school) =>
-            typeof school === "object" && school !== null
-              ? school?.id ?? school?._id ?? school?.schoolId ?? school?.sekolahId
-              : school,
-          )
-          .filter(Boolean)
-          .map((schoolId) => String(schoolId))
-      : toStringArray(schoolsRaw);
-
   return {
     id: String(item?.id ?? item?._id ?? item?.sppgId ?? `sppg-${index + 1}`),
-    name: getDisplayValue(item?.name ?? item?.nama ?? item?.sppgName),
+    name: item?.name ?? item?.nama ?? item?.sppgName ?? `SPPG ${index + 1}`,
     location:
-      getDisplayValue(
-        item?.location ?? item?.city ?? item?.address ?? item?.wilayah,
-      ),
-    info: getDisplayValue(item?.info ?? item?.coverage ?? item?.melayani),
+      item?.location ??
+      item?.city ??
+      item?.address ??
+      item?.wilayah ??
+      "Lokasi belum tersedia",
+    info: item?.info ?? item?.coverage ?? item?.melayani ?? "Melayani sekolah sekitar",
     capacity:
-      getDisplayValue(item?.capacity ?? item?.capacityPerDay ?? item?.kapasitas),
-    photoUrl:
-      item?.photoUrl ??
-      item?.photo_url ??
-      item?.imageUrl ??
-      item?.image_url ??
-      item?.logoUrl ??
-      item?.logo_url ??
-      null,
+      item?.capacity ??
+      item?.capacityPerDay ??
+      item?.kapasitas ??
+      "Kapasitas belum tersedia",
     lat: toNumber(item?.lat),
     lng: toNumber(item?.lng),
-    schools,
+    schools: toStringArray(
+      item?.schools ?? item?.schoolIds ?? item?.sekolahIds ?? item?.school_ids,
+    ),
   };
 };
 
 export const mapSchoolForMapPage = (item, index) => {
   return {
     id: String(item?.id ?? item?._id ?? item?.sekolahId ?? `school-${index + 1}`),
-    name: getDisplayValue(item?.name ?? item?.nama ?? item?.schoolName),
+    name: item?.name ?? item?.nama ?? item?.schoolName ?? `Sekolah ${index + 1}`,
     location:
-      getDisplayValue(
-        item?.location ?? item?.city ?? item?.address ?? item?.wilayah,
-      ),
+      item?.location ??
+      item?.city ??
+      item?.address ??
+      item?.wilayah ??
+      "Lokasi belum tersedia",
     info:
-      getDisplayValue(item?.info ?? item?.partnerInfo ?? item?.description),
+      item?.info ?? item?.partnerInfo ?? item?.description ?? "Mitra distribusi SPPG",
     capacity:
-      getDisplayValue(
-        item?.capacity ??
-          item?.students ??
-          item?.studentsCount ??
-          item?.jumlahSiswa,
-      ),
-    photoUrl:
-      item?.photoUrl ??
-      item?.photo_url ??
-      item?.imageUrl ??
-      item?.image_url ??
-      item?.logoUrl ??
-      item?.logo_url ??
-      null,
+      item?.capacity ??
+      item?.students ??
+      item?.studentsCount ??
+      item?.jumlahSiswa ??
+      "Jumlah siswa belum tersedia",
     lat: toNumber(item?.lat),
     lng: toNumber(item?.lng),
     sppgId:
