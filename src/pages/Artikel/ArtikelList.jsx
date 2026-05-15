@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
-import Footer from "../../components/common/Footer";
 import { getAllArtikel } from "../../services/artikelService";
+import { getDisplayValue } from "../../utils/display";
+import { resolveImageUrl } from "../../utils/imageUrl";
 
 function getResponseArray(payload) {
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload)) return payload;
   return [];
 }
 
 function formatPublishedDate(value) {
-  if (!value) return "Tanggal belum tersedia";
+  if (!value) return "-";
 
   return new Date(value).toLocaleDateString("id-ID", {
     day: "numeric",
@@ -21,7 +23,9 @@ function formatPublishedDate(value) {
 }
 
 function ArticleImage({ src, alt, className }) {
-  if (!src) {
+  const imageUrl = resolveImageUrl(src);
+
+  if (!imageUrl) {
     return (
       <div className={`flex items-center justify-center bg-slate-100 text-xs font-bold text-slate-400 ${className}`}>
         SIMBA
@@ -29,31 +33,34 @@ function ArticleImage({ src, alt, className }) {
     );
   }
 
-  return <img src={src} alt={alt} className={className} loading="lazy" />;
+  return <img src={imageUrl} alt={alt} className={className} loading="lazy" />;
 }
 
 function ArticleCard({ article }) {
+  const articleId = article?.id ?? article?._id;
+  if (!articleId) return null;
+
   return (
     <Link
-      to={`/artikel/${article.id}`}
+      to={`/artikel/${articleId}`}
       className="group block border-l-4 border-[#136DEC] bg-white shadow-[0_1px_8px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(15,23,42,0.14)]"
     >
       <article className="flex gap-5 p-5">
         <ArticleImage
           src={article.coverImageUrl}
-          alt={article.title}
+          alt={getDisplayValue(article.title)}
           className="h-28 w-28 shrink-0 rounded-md object-cover"
         />
 
         <div className="min-w-0 flex-1 py-1">
           <h2 className="text-base font-extrabold leading-snug text-slate-950 group-hover:text-[#136DEC]">
-            {article.title}
+            {getDisplayValue(article.title)}
           </h2>
           <p className="mt-2 text-xs font-medium text-slate-600">
             {formatPublishedDate(article.publishedAt)}
           </p>
           <p className="mt-4 rounded-md bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-600">
-            {article.summary}
+            {getDisplayValue(article.summary)}
           </p>
         </div>
       </article>
@@ -138,13 +145,12 @@ export default function ArtikelList() {
 
             {!loading && !error
               ? articles.map((article) => (
-                  <ArticleCard key={article.id} article={article} />
+                  <ArticleCard key={article?.id ?? article?._id ?? article?.title} article={article} />
                 ))
               : null}
           </div>
         </div>
       </main>
-      <Footer />
     </>
   );
 }
