@@ -4,7 +4,6 @@ import About from "./components/About";
 import Maps from "./components/Map";
 import DashboardPemantauan from "./components/DashboardPemantauan";
 import FAQ from "./components/FAQ";
-import Footer from "../../components/common/Footer";
 import { Link } from "react-router-dom";
 
 <Link to="/maps">View Full Map</Link> 
@@ -22,7 +21,6 @@ export default function Home() {
       <Maps />
       <DashboardPemantauan />
       <FAQ />
-      <Footer />
     </div>
   );
 }
