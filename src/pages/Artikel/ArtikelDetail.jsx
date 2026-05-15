@@ -1,24 +1,27 @@
 import { Fragment, useEffect, useState } from "react";
 import { FiArrowRight, FiCalendar, FiCheckCircle, FiUser } from "react-icons/fi";
 import { Link, useParams } from "react-router-dom";
-import Footer from "../../components/common/Footer";
 import { getAllArtikel, getArtikelById } from "../../services/artikelService";
+import { getDisplayValue } from "../../utils/display";
+import { resolveImageUrl } from "../../utils/imageUrl";
 
 function getResponseArray(payload) {
+  if (Array.isArray(payload?.data?.data)) return payload.data.data;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload)) return payload;
   return [];
 }
 
 function getResponseObject(payload) {
+  if (payload?.data && payload?.data?.data && !Array.isArray(payload.data.data)) return payload.data.data;
   return payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
 }
 
 function formatPublishedDate(value) {
-  if (!value) return "Tanggal belum tersedia";
+  if (!value) return "-";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Tanggal belum tersedia";
+  if (Number.isNaN(date.getTime())) return "-";
 
   return date.toLocaleDateString("id-ID", {
     day: "numeric",
@@ -28,7 +31,8 @@ function formatPublishedDate(value) {
 }
 
 function ArticleImage({ src, alt, className }) {
-  if (!src) {
+  const imageUrl = resolveImageUrl(src);
+  if (!imageUrl) {
     return (
       <div className={`flex items-center justify-center bg-slate-100 text-sm font-bold text-slate-400 ${className}`}>
         SIMBA
@@ -36,7 +40,7 @@ function ArticleImage({ src, alt, className }) {
     );
   }
 
-  return <img src={src} alt={alt} className={className} loading="lazy" />;
+  return <img src={imageUrl} alt={alt} className={className} loading="lazy" />;
 }
 
 function ArticleContent({ content }) {
@@ -98,9 +102,12 @@ function ArticleContent({ content }) {
 }
 
 function RelatedCard({ article }) {
+  const articleId = article?.id ?? article?._id;
+  if (!articleId) return null;
+
   return (
     <Link
-      to={`/artikel/${article.id}`}
+      to={`/artikel/${articleId}`}
       className="group overflow-hidden rounded-xl bg-white shadow-[0_12px_30px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_18px_36px_rgba(15,23,42,0.13)]"
     >
       <ArticleImage
@@ -110,10 +117,10 @@ function RelatedCard({ article }) {
       />
       <div className="p-6">
         <h3 className="line-clamp-2 text-xl font-extrabold leading-snug text-slate-950 group-hover:text-[#136DEC]">
-          {article.title}
+          {getDisplayValue(article.title)}
         </h3>
         <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">
-          {article.summary}
+          {getDisplayValue(article.summary)}
         </p>
         <span className="mt-6 inline-flex items-center gap-2 text-sm font-extrabold text-[#0058a8]">
           Baca Selengkapnya
@@ -146,11 +153,12 @@ export default function ArtikelDetail() {
 
         const currentArticle = getResponseObject(articleResponse.data);
         const articles = getResponseArray(articlesResponse.data);
+        const currentId = currentArticle?.id ?? currentArticle?._id;
 
         if (isMounted) {
           setArticle(currentArticle);
           setRelatedArticles(
-            articles.filter((item) => item.id !== currentArticle?.id).slice(0, 3),
+            articles.filter((item) => (item?.id ?? item?._id) !== currentId).slice(0, 3),
           );
         }
       } catch (articleError) {
@@ -194,7 +202,7 @@ export default function ArtikelDetail() {
             <>
               <header>
                 <h1 className="max-w-[980px] text-4xl font-black leading-[1.05] tracking-tight text-slate-950 md:text-6xl">
-                  {article.title}
+                  {getDisplayValue(article.title)}
                 </h1>
 
                 <div className="mt-7 flex flex-wrap items-center gap-7 text-base font-medium text-slate-500">
@@ -202,7 +210,7 @@ export default function ArtikelDetail() {
                     <span className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-[#136DEC]">
                       <FiUser className="h-5 w-5" />
                     </span>
-                    <span>{article.author || "Tim SIMBA"}</span>
+                    <span>{getDisplayValue(article.author || "Tim SIMBA")}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <FiCalendar className="h-5 w-5 text-slate-500" />
@@ -213,7 +221,7 @@ export default function ArtikelDetail() {
 
               <ArticleImage
                 src={article.coverImageUrl}
-                alt={article.title}
+                alt={getDisplayValue(article.title)}
                 className="mt-14 h-[320px] w-full rounded-lg object-cover shadow-[0_24px_60px_rgba(15,23,42,0.08)] md:h-[560px]"
               />
 
@@ -229,7 +237,7 @@ export default function ArtikelDetail() {
                 {relatedArticles.length > 0 ? (
                   <div className="mt-10 grid gap-8 md:grid-cols-3">
                     {relatedArticles.map((relatedArticle) => (
-                      <RelatedCard key={relatedArticle.id} article={relatedArticle} />
+                      <RelatedCard key={relatedArticle?.id ?? relatedArticle?._id ?? relatedArticle?.title} article={relatedArticle} />
                     ))}
                   </div>
                 ) : (
@@ -242,7 +250,6 @@ export default function ArtikelDetail() {
           ) : null}
         </div>
       </main>
-      <Footer />
     </>
   );
 }
