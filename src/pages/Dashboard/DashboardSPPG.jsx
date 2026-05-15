@@ -16,20 +16,26 @@ import { useAuth } from '../../hooks/useAuth';
 import { getSPPGById } from '../../services/sppgService';
 import { getNotificationsBySppgId } from '../../services/notificationService';
 import { getDisplayValue } from '../../utils/display';
+import UserMenu from "../../components/common/UserMenu";
 
 const DashboardSPPG = () => {
+  const FEATURE_MENU_UPLOAD_READY = false;
+  const FEATURE_NUTRITION_UPLOAD_READY = false;
+  const FEATURE_DOC_UPLOAD_READY = false;
   const { user } = useAuth();
   const navigate = useNavigate();
   const sppgId = user?.sppgId || user?.id || null;
-  const profileId = user?.sppgId || user?.id || null;
   const hasSppgId = Boolean(sppgId);
   const [sppgData, setSppgData] = useState(null);
   const [servedSchools, setServedSchools] = useState([]);
   const [loading, setLoading] = useState(hasSppgId);
   const [error, setError] = useState(hasSppgId ? '' : 'ID SPPG belum tersedia.');
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [csvFile, setCsvFile] = useState(null);
+  const [nutritionFile, setNutritionFile] = useState(null);
   const [menuData, setMenuData] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [actionMessage, setActionMessage] = useState("");
 
   useEffect(() => {
     if (!sppgId) {
@@ -117,6 +123,11 @@ const DashboardSPPG = () => {
     if (file) setUploadedFile(file);
   };
 
+  const showUnavailableMessage = () => {
+    setActionMessage("Fitur ini belum terhubung ke backend. Sementara hanya tampilan.");
+    setTimeout(() => setActionMessage(""), 2500);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col">
       <nav className="sticky top-0 z-40 bg-white shadow w-full">
@@ -137,15 +148,7 @@ const DashboardSPPG = () => {
               <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500" />
             </button>
             <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
-            <button
-              type="button"
-              onClick={() => profileId && navigate(`/profil/sppg/${profileId}`)}
-              className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Buka Profil SPPG"
-              disabled={!profileId}
-            >
-              <img src={IconProfile} alt="" />
-            </button>
+            <UserMenu icon={IconProfile} ariaLabel="Menu Pengguna SPPG" />
           </div>
         </div>
       </nav>
@@ -162,6 +165,11 @@ const DashboardSPPG = () => {
           {error ? (
             <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
               {error}
+            </div>
+          ) : null}
+          {actionMessage ? (
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
+              {actionMessage}
             </div>
           ) : null}
 
@@ -222,12 +230,22 @@ const DashboardSPPG = () => {
               onDragOver={(e) => e.preventDefault()}
               onClick={() => document.getElementById('csvInput').click()}
             >
-              <input id="csvInput" type="file" accept=".csv" className="hidden" onChange={handleFileDrop} />
+              <input
+                id="csvInput"
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setCsvFile(file);
+                }}
+              />
               <svg className="w-10 h-10 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
               <span className="text-lg font-semibold text-gray-600">
-                {uploadedFile ? uploadedFile.name : 'Menu belum tersedia'}
+                {csvFile ? csvFile.name : 'Menu belum tersedia'}
               </span>
             </div>
 
@@ -269,8 +287,16 @@ const DashboardSPPG = () => {
             </div>
 
             <div className="flex justify-end">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95">
-                Confirm Menu
+              <button
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-60"
+                disabled={!FEATURE_MENU_UPLOAD_READY}
+                onClick={() => {
+                  if (!FEATURE_MENU_UPLOAD_READY) {
+                    showUnavailableMessage();
+                  }
+                }}
+              >
+                {FEATURE_MENU_UPLOAD_READY ? "Confirm Menu" : "Belum Terhubung"}
               </button>
             </div>
           </div>
@@ -286,14 +312,36 @@ const DashboardSPPG = () => {
             <div className="flex flex-col md:flex-row gap-8">
               <div
                 className="border-2 border-dashed border-gray-300 rounded-xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all w-full md:w-1/2"
-                onClick={() => document.getElementById('nutritionCsvInput').click()}
+                onClick={() => {
+                  if (!FEATURE_NUTRITION_UPLOAD_READY) {
+                    showUnavailableMessage();
+                    return;
+                  }
+                  document.getElementById('nutritionCsvInput').click();
+                }}
               >
-                <input id="nutritionCsvInput" type="file" accept=".csv" className="hidden" />
+                <input
+                  id="nutritionCsvInput"
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setNutritionFile(file);
+                  }}
+                />
                 <img src={IconNutrisi} alt="Nutrisi Icon" className="w-8 h-8 object-contain" />
                 <p className="text-base font-bold text-gray-700">Nutrition CSV Upload</p>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95">
-                  Upload CSV
+                <button
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95 disabled:opacity-60"
+                  disabled={!FEATURE_NUTRITION_UPLOAD_READY}
+                >
+                  {FEATURE_NUTRITION_UPLOAD_READY ? "Upload CSV" : "Belum Terhubung"}
                 </button>
+                {nutritionFile ? (
+                  <p className="text-xs text-slate-500">{nutritionFile.name}</p>
+                ) : null}
               </div>
 
               <div className="flex flex-col justify-center gap-5 w-full md:w-1/2">
@@ -338,6 +386,7 @@ const DashboardSPPG = () => {
                   e.currentTarget.style.backgroundColor = '#F1F5F9';
                   e.currentTarget.style.border = '2px dashed #CBD5E1';
                 }}
+                onClick={showUnavailableMessage}
               >
                 <img src={IconCamera} alt="Camera Icon" className="w-10 h-10 object-contain" />
                 <p className="text-sm text-gray-500 font-medium">Add Meal Photo</p>
@@ -366,8 +415,16 @@ const DashboardSPPG = () => {
                     className="border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-400 outline-none focus:border-blue-400 resize-none" />
                 </div>
 
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold transition-all active:scale-95 w-fit">
-                  Submit Documentation
+                <button
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold transition-all active:scale-95 w-fit disabled:opacity-60"
+                  disabled={!FEATURE_DOC_UPLOAD_READY}
+                  onClick={() => {
+                    if (!FEATURE_DOC_UPLOAD_READY) {
+                      showUnavailableMessage();
+                    }
+                  }}
+                >
+                  {FEATURE_DOC_UPLOAD_READY ? "Submit Documentation" : "Belum Terhubung"}
                 </button>
               </div>
             </div>
