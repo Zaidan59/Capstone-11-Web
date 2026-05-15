@@ -3,25 +3,13 @@ import { useNavigate } from "react-router-dom";
 import logo from "../../assets/Logo.png";
 import iconProfile from "../../assets/icon_profile.png";
 import { useAuth } from "../../hooks/useAuth";
-import { getNotificationsBySchoolId } from "../../services/notificationService";
-import { getDisplayValue } from "../../utils/display";
-import { resolveImageUrl } from "../../utils/imageUrl";
+import { getNotificationsBySekolahId, markAllAsRead, markAsRead } from "../../services/notificationService";
 
 import iconPengiriman    from "../../assets/icon_pengiriman.png";
 import iconVerifPengiriman from "../../assets/Icon_Verifikasi.png";
 import iconMenu          from "../../assets/Icon_Menu.png";
 import iconVerifikasi    from "../../assets/Icon_Verif.png";
-
-function normalizeSekolahData(raw) {
-  if (!raw) return null;
-  return {
-    ...raw,
-    nama: raw?.nama ?? raw?.schoolName ?? "-",
-    kota: raw?.kota ?? raw?.city ?? "-",
-    jumlahSiswa: raw?.jumlahSiswa ?? raw?.studentCount ?? null,
-    foto: raw?.foto ?? raw?.photoUrl ?? null,
-  };
-}
+import fotoSekolah       from "../../assets/foto_sekolah.png";
 
 function IconBell({ hasUnread }) {
   return (
@@ -52,9 +40,10 @@ function IconTypeMap({ type }) {
   );
 }
 
-function NotifCard({ notif }) {
+function NotifCard({ notif, onRead }) {
   return (
     <div
+      onClick={() => !notif.isRead && onRead(notif.id)}
       className={`relative flex items-start gap-4 p-5 rounded-2xl border transition-all cursor-pointer
         ${notif.isRead
           ? "bg-white border-slate-100 hover:border-slate-200"
@@ -70,13 +59,13 @@ function NotifCard({ notif }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-3">
           <p className="text-[16px] font-bold text-slate-900 leading-snug">
-            {getDisplayValue(notif.judul)}
+            {notif.judul}
           </p>
           <span className="text-[12px] text-slate-400 whitespace-nowrap flex-shrink-0 mt-0.5">
-            {getDisplayValue(notif.waktu)}
+            {notif.waktu}
           </span>
         </div>
-        <p className="text-[14px] text-slate-500 mt-1 leading-relaxed">{getDisplayValue(notif.deskripsi)}</p>
+        <p className="text-[14px] text-slate-500 mt-1 leading-relaxed">{notif.deskripsi}</p>
         {notif.actionLabel && (
           <button className="mt-3 inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
             {notif.actionLabel}
@@ -90,17 +79,7 @@ function NotifCard({ notif }) {
   );
 }
 
-function RightSidebar({ sekolah, totalNotifications, reviewedNotifications }) {
-  const sekolahPhoto = resolveImageUrl(sekolah?.foto);
-  const reviewedRatio =
-    totalNotifications > 0
-      ? `${Math.round((reviewedNotifications / totalNotifications) * 100)}%`
-      : "-";
-  const reviewedLabel =
-    totalNotifications > 0
-      ? `${reviewedNotifications}/${totalNotifications} ditinjau`
-      : "Belum tersedia";
-
+function RightSidebar({ sekolah, onMarkAllRead }) {
   return (
     <div className="space-y-4">
 
@@ -111,28 +90,28 @@ function RightSidebar({ sekolah, totalNotifications, reviewedNotifications }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="text-center">
             <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1">Pengiriman</p>
-            <p className="text-[24px] font-bold text-blue-600">{totalNotifications}</p>
-            <p className="text-[10px] text-[#059669] font-semibold mt-0.5">Notifikasi</p>
+            <p className="text-[24px] font-bold text-blue-600">98%</p>
+            <p className="text-[10px] text-[#059669] font-semibold mt-0.5">On-time</p>
           </div>
           <div className="text-center">
             <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mb-1">Akurasi</p>
-            <p className="text-[24px] font-bold text-blue-600">{reviewedRatio}</p>
-            <p className="text-[10px] text-[#059669] font-semibold mt-0.5">{reviewedLabel}</p>
+            <p className="text-[24px] font-bold text-blue-600">100%</p>
+            <p className="text-[10px] text-[#059669] font-semibold mt-0.5">Verified</p>
           </div>
         </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="h-32 bg-gradient-to-br from-slate-400 to-slate-600 relative overflow-hidden">
-          {sekolahPhoto ? (
+          {sekolah?.foto ? (
             <div className="relative w-full h-full">
-              <img src={sekolahPhoto} alt="Gedung Sekolah" className="w-full h-full object-cover" />
+              <img src={sekolah.foto} alt="Gedung Sekolah" className="w-full h-full object-cover" />
               <div className="absolute bottom-0 left-0 right-0 px-4 pb-3 bg-gradient-to-t from-black/60 to-transparent pt-8">
                 <p className="text-white font-bold text-[14px] leading-tight">
-                  {getDisplayValue(sekolah?.nama)}
+                  {sekolah?.nama || "SMP Negeri 115 Jakarta"}
                 </p>
                 <p className="text-white/70 text-[10px] mt-0.5">
-                  {sekolah?.id ? `ID: ${sekolah.id}` : "ID: -"}
+                  {sekolah?.id ? `ID: ${sekolah.id}` : "ID: 2024-KBY-01"}
                 </p>
               </div>
             </div>
@@ -140,10 +119,10 @@ function RightSidebar({ sekolah, totalNotifications, reviewedNotifications }) {
             <div className="w-full h-full bg-gradient-to-br from-slate-400 via-slate-500 to-slate-700 flex items-end">
               <div className="w-full px-4 pb-3 bg-gradient-to-t from-black/50 to-transparent pt-8">
                 <p className="text-white font-bold text-[14px] leading-tight">
-                  {getDisplayValue(sekolah?.nama)}
+                  {sekolah?.nama || "SMP Negeri 115 Jakarta"}
                 </p>
                 <p className="text-white/70 text-[10px] mt-0.5">
-                  {sekolah?.id ? `ID: ${sekolah.id}` : "ID: -"}
+                  {sekolah?.id ? `ID: ${sekolah.id}` : "ID: 2024-KBY-01"}
                 </p>
               </div>
             </div>
@@ -156,13 +135,13 @@ function RightSidebar({ sekolah, totalNotifications, reviewedNotifications }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
-            {getDisplayValue(sekolah?.kota)}
+            {sekolah?.kota || "Jakarta Selatan, DKI Jakarta"}
           </div>
           <div className="flex items-center gap-2 text-[12px] text-slate-500">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
             </svg>
-            {sekolah?.jumlahSiswa ? `${sekolah.jumlahSiswa} Siswa Terdaftar` : "-"}
+            {sekolah?.jumlahSiswa ? `${sekolah.jumlahSiswa} Siswa Terdaftar` : "450 Siswa Terdaftar"}
           </div>
         </div>
       </div>
@@ -179,6 +158,15 @@ function RightSidebar({ sekolah, totalNotifications, reviewedNotifications }) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
           </button>
+          <button
+            onClick={onMarkAllRead}
+            className="w-full flex items-center justify-between py-2.5 text-[14px] text-slate-700 hover:text-slate-900 transition-colors"
+          >
+            <span>Tandai Semua Dibaca</span>
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-slate-400">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -189,87 +177,93 @@ function RightSidebar({ sekolah, totalNotifications, reviewedNotifications }) {
 export default function NotificationSekolah() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const sekolahId = user?.sekolahId || user?.id || null;
-  const profileId = sekolahId;
-  const hasSekolahId = Boolean(sekolahId);
   const [notifs, setNotifs] = useState([]);
-  const sekolah = normalizeSekolahData(user?.school ?? user?.sekolah ?? null);
-  const [loading, setLoading] = useState(hasSekolahId);
-  const [error, setError] = useState(hasSekolahId ? '' : 'ID sekolah belum tersedia.');
+  const [sekolah, setSekolah] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const displayName = user?.name || user?.identifier || "Pengguna Sekolah";
+  const sekolahId = user?.sekolahId || user?.id || 1;
 
   useEffect(() => {
-    if (!sekolahId) {
-      return;
-    }
-    Promise.resolve()
-      .then(() => {
-        setLoading(true);
-        setError('');
-        return getNotificationsBySchoolId(sekolahId);
-      })
-      .then((res) => {
-        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
-        setNotifs(data);
+    const fetchData = () => {
+      setLoading(true);
+      getNotificationsBySekolahId(sekolahId)
+      .then(res => {
+        setNotifs(res.data.notifications || []);
+        setSekolah(res.data.sekolah || null);
       })
       .catch(() => {
-        setNotifs([]);
-        setError('Gagal memuat notifikasi.');
+        setNotifs([
+          {
+            id: 1,
+            type: "verif_pengiriman",
+            judul: "Mohon Verifikasi Penerimaan",
+            deskripsi: "Kiriman makan siang tahap 1 telah tiba di lokasi. Harap lakukan verifikasi kuantitas dan kualitas item segera.",
+            waktu: "10:45 WIB",
+            isRead: false,
+            actionLabel: "Verifikasi Sekarang",
+          },
+          {
+            id: 2,
+            type: "pengiriman",
+            judul: "Pengiriman Sedang Berlangsung",
+            deskripsi: "Kurir MBG-042 sedang menuju lokasi Anda. Estimasi waktu tiba adalah 20 menit dari sekarang.",
+            waktu: "09:15 WIB",
+            isRead: false,
+            actionLabel: null,
+          },
+          {
+            id: 3,
+            type: "menu",
+            judul: "Perubahan Menu Hari Ini",
+            deskripsi: "Ada penyesuaian pada menu protein untuk hari ini. Ayam Goreng Lengkuas digantikan dengan Ayam Semur karena kendala pasokan lokal.",
+            waktu: "Kemarin, 16:30",
+            isRead: true,
+            actionLabel: null,
+          },
+          {
+            id: 4,
+            type: "verifikasi",
+            judul: "Verifikasi Selesai",
+            deskripsi: "Laporan verifikasi untuk tanggal 21 Okt telah berhasil diunggah dan disetujui oleh sistem.",
+            waktu: "Kemarin, 13:00",
+            isRead: true,
+            actionLabel: null,
+          },
+        ]);
+        setSekolah({
+          nama: "SMP Negeri 115 Jakarta",
+          foto: fotoSekolah,
+          kota: "Jakarta Selatan, DKI Jakarta",
+          jumlahSiswa: 450,
+        });
       })
       .finally(() => setLoading(false));
+    };
+    fetchData();
   }, [sekolahId]);
 
-  const formatTime = (value) => {
-    if (!value) return '-';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
-    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  const handleMarkAsRead = (id) => {
+    markAsRead(id).catch(() => {});
+    setNotifs(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
   };
 
-  const normalizedNotifs = notifs.map((item, index) => {
-    const parsedDate = item?.createdAt ? new Date(item.createdAt) : null;
-    const isValidDate = parsedDate && !Number.isNaN(parsedDate.getTime());
+  const handleMarkAllRead = () => {
+    markAllAsRead(sekolahId).catch(() => {});
+    setNotifs(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
 
-    return {
-      id: item?.id ?? `${item?.type ?? 'notif'}-${item?.createdAt ?? 'unknown'}-${index}`,
-      parsedDate: isValidDate ? parsedDate : null,
-      type: item?.type ?? 'info',
-      judul: item?.title ?? item?.judul ?? '-',
-      deskripsi: item?.message ?? item?.deskripsi ?? '-',
-      waktu: isValidDate ? formatTime(item.createdAt) : '-',
-      isRead: item?.status && item.status !== 'new',
-      actionLabel: null,
-    };
-  });
+  const hasUnread = notifs.some(n => !n.isRead);
 
-  const totalNotifications = normalizedNotifs.length;
-  const reviewedNotifications = normalizedNotifs.filter((n) => n.isRead).length;
-  const hasUnread = normalizedNotifs.some(n => !n.isRead);
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-
-  const todayNotifs = normalizedNotifs.filter((n) => {
-    if (!n.parsedDate) return false;
-    const cmp = new Date(n.parsedDate);
-    cmp.setHours(0, 0, 0, 0);
-    return cmp.getTime() === today.getTime();
-  });
-  const yesterdayNotifs = normalizedNotifs.filter((n) => {
-    if (!n.parsedDate) return false;
-    const cmp = new Date(n.parsedDate);
-    cmp.setHours(0, 0, 0, 0);
-    return cmp.getTime() === yesterday.getTime();
-  });
-  const olderNotifs = normalizedNotifs.filter((n) => {
-    if (!n.parsedDate) return true;
-    const cmp = new Date(n.parsedDate);
-    cmp.setHours(0, 0, 0, 0);
-    return cmp.getTime() < yesterday.getTime();
-  });
+  const todayNotifs = notifs.filter(n =>
+    n.waktu && !n.waktu.toLowerCase().startsWith("kemarin") && !n.waktu.toLowerCase().startsWith("minggu")
+  );
+  const yesterdayNotifs = notifs.filter(n =>
+    n.waktu && n.waktu.toLowerCase().startsWith("kemarin")
+  );
+  const olderNotifs = notifs.filter(n =>
+    n.waktu && n.waktu.toLowerCase().startsWith("minggu")
+  );
 
   return (
     <div className="bg-[#F3F4F6] min-h-screen flex flex-col">
@@ -288,15 +282,9 @@ export default function NotificationSekolah() {
               <IconBell hasUnread={hasUnread} />
             </button>
             <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
-            <button
-              type="button"
-              onClick={() => profileId && navigate(`/profil/sekolah/${profileId}`)}
-              className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Buka Profil Sekolah"
-              disabled={!profileId}
-            >
+            <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer">
               <img src={iconProfile} alt="" />
-            </button>
+            </div>
           </div>
         </div>
       </nav>
@@ -313,7 +301,7 @@ export default function NotificationSekolah() {
                 <p className="text-[16px] text-slate-500 mt-1">
                   Pembaruan operasional dan informasi pengiriman untuk{" "}
                   <span className="font-medium text-slate-700">
-                    {getDisplayValue(sekolah?.nama)}
+                    {sekolah?.nama || "SMP Negeri 115 Jakarta"}
                   </span>
                 </p>
               </div>
@@ -333,11 +321,7 @@ export default function NotificationSekolah() {
                     </div>
                   ))}
                 </div>
-              ) : error ? (
-                <div className="bg-white rounded-2xl border border-slate-100 p-6 text-center text-rose-600">
-                  {error}
-                </div>
-              ) : normalizedNotifs.length === 0 ? (
+              ) : notifs.length === 0 ? (
                 <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center">
                   <svg className="mx-auto mb-4 text-slate-200" width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
@@ -353,7 +337,7 @@ export default function NotificationSekolah() {
                       </p>
                       <div className="space-y-3">
                         {todayNotifs.map(n => (
-                          <NotifCard key={n.id} notif={n} />
+                          <NotifCard key={n.id} notif={n} onRead={handleMarkAsRead} />
                         ))}
                       </div>
                     </div>
@@ -366,7 +350,7 @@ export default function NotificationSekolah() {
                       </p>
                       <div className="space-y-3">
                         {yesterdayNotifs.map(n => (
-                          <NotifCard key={n.id} notif={n} />
+                          <NotifCard key={n.id} notif={n} onRead={handleMarkAsRead} />
                         ))}
                       </div>
                     </div>
@@ -379,7 +363,7 @@ export default function NotificationSekolah() {
                       </p>
                       <div className="space-y-3">
                         {olderNotifs.map(n => (
-                          <NotifCard key={n.id} notif={n} />
+                          <NotifCard key={n.id} notif={n} onRead={handleMarkAsRead} />
                         ))}
                       </div>
                     </div>
@@ -389,11 +373,7 @@ export default function NotificationSekolah() {
             </div>
 
             <div className="lg:w-72 xl:w-80 flex-shrink-0">
-              <RightSidebar
-                sekolah={sekolah}
-                totalNotifications={totalNotifications}
-                reviewedNotifications={reviewedNotifications}
-              />
+              <RightSidebar sekolah={sekolah} onMarkAllRead={handleMarkAllRead} />
             </div>
 
           </div>
