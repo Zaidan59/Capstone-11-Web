@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { login as loginService } from '../../services/authService'
 import { useAuth } from '../../hooks/useAuth'
-import Logo from '../../assets/Logo.png'
+import Logo from '../../assets/logo.png'
+import { validateMockAccount } from '../../utils/mockAccounts'
 
 export default function Login() {
   const [role, setRole] = useState('sppg')
@@ -22,6 +23,8 @@ export default function Login() {
 
   const footerLinks = ['Kebijakan Privasi', 'Ketentuan Layanan', 'Pusat Dukungan']
 
+  const authMode = import.meta.env.VITE_AUTH_MODE === 'mock' ? 'mock' : 'api'
+  const isMockMode = authMode === 'mock'
   const dashboardPath = role === 'sppg' ? '/dashboard/sppg' : '/dashboard/sekolah'
 
   const handleSubmit = async (e) => {
@@ -29,19 +32,27 @@ export default function Login() {
     setError('')
     setLoading(true)
 
+    if (isMockMode) {
+      const validatedUser = validateMockAccount(identifier, password, role)
+      if (!validatedUser) {
+        setError('Username atau password salah.')
+        setLoading(false)
+        return
+      }
+      // Delay 1.5 detik untuk effect loading yang terasa
+      setTimeout(() => {
+        login(validatedUser)
+        navigate(dashboardPath)
+        setLoading(false)
+      }, 1500)
+      return
+    }
+
     try {
       const res = await loginService({ identifier, password, role })
-      const data = res?.data ?? {}
-      const token = data?.token ?? data?.accessToken ?? data?.data?.token ?? null
-      const userData = data?.user ?? data?.data?.user ?? null
-
-      if (!userData) {
-        throw new Error('Data pengguna tidak ditemukan pada response login.')
-      }
-
       // Delay 1.5 detik untuk consistency
       setTimeout(() => {
-        login({ user: userData, token })
+        login(res.data?.user)
         navigate(dashboardPath)
         setLoading(false)
       }, 1500)
