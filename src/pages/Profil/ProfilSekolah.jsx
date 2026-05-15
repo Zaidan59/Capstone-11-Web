@@ -1,46 +1,39 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../../components/common/Navbar';
+import Footer from '../../components/common/Footer';
 import arrowBack from '../../assets/Vector_arrow.png';
 import iconPeople from '../../assets/icon_people.png';
 import iconTanggal from '../../assets/iconTanggal.png';
 import dokumMenu from '../../assets/dokumMenu.png';
 import catatanIcon from '../../assets/catatanIcon.png';
-import { getDisplayValue } from '../../utils/display';
-import { resolveImageUrl } from '../../utils/imageUrl';
-import { useAuth } from '../../hooks/useAuth';
-import {
-  getSekolahById,
-  getSekolahCatatan,
-  getSekolahDokumentasi,
-  getSekolahMenuHarian,
-  getSekolahNutrisi,
-  getSekolahSppg,
-} from '../../services/sekolahService';
+import DefaultSekolah from '../../assets/defaultSekolah.png';
+import dokumMenu1 from '../../assets/dokumDefault1.png';
+import dokumMenu2 from '../../assets/dokumDefault2.png';
+import dokumMenu3 from '../../assets/dokumDefault3.png';
 
 const STORAGE_KEY_DOCS  = 'simba_dokumentasi';
 const STORAGE_KEY_NOTES = 'simba_catatan';
 
 const DEFAULT_SEKOLAH = {
-  nama: '-',
-  foto: null,
-  status: '-',
-  alamat: '-',
-  npsn: '-',
-  siswa: '-',
+  nama: 'SMP Negeri 115 Jakarta',
+  foto: DefaultSekolah,
+  status: 'Operasional Aktif',
+  alamat: 'Jl. KH Abdullah Syafiei No. 8, RT 8/RW 2, Bukit Duri, Kec. Tebet, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta 12840',
+  npsn: '4500',
+  siswa: 450,
 };
 
 const DEFAULT_SPPG = {
-  nama: '-',
-  alamat: '-',
-  kapasitas: '-',
+  nama: 'SPPG Kebayoran Baru',
+  alamat: 'Jl. Melawai Raya No.12, Kebayoran Baru, Jakarta Selatan',
+  kapasitas: 1000,
 };
 
 const DEFAULT_MENU_HARIAN = [
   {
-    hari: '-',
-    isToday: false,
-    menu: ['-'],
+    hari: 'Senin, 25 Mei',
+    isToday: true,
+    menu: ['Nasi Goreng', 'Ayam Goreng', 'Tahu', 'Buah Pisang'],
   },
   {
     hari: 'Selasa, 26 Mei',
@@ -50,105 +43,65 @@ const DEFAULT_MENU_HARIAN = [
 ];
 
 const DEFAULT_DOKUMENTASI = [
-  { foto: null, fotoUrl: null, caption: '-' },
+  { foto: dokumMenu1, fotoUrl: null, caption: 'Menu Diterima Jam 10:00 WIB' },
+  { foto: dokumMenu2, fotoUrl: null, caption: 'Quality Check Jam 09:45 WIB' },
+  { foto: dokumMenu3, fotoUrl: null, caption: 'Pengecekan Menu Jam 09:00 WIB' },
 ];
 
 const DEFAULT_NUTRISI = [
-  { lbl: 'KALORI',      val: '-', unit: '' },
-  { lbl: 'PROTEIN',     val: '-', unit: '' },
-  { lbl: 'KARBOHIDRAT', val: '-', unit: '' },
-  { lbl: 'LEMAK',       val: '-', unit: '' },
+  { lbl: 'KALORI',      val: '650', unit: 'kcal' },
+  { lbl: 'PROTEIN',     val: '28g', unit: 'g'    },
+  { lbl: 'KARBOHIDRAT', val: '85g', unit: 'g'    },
+  { lbl: 'LEMAK',       val: '18g', unit: 'g'    },
 ];
 
-const DEFAULT_CATATAN = [];
-
-function normalizeSekolahData(raw) {
-  if (!raw) return DEFAULT_SEKOLAH;
-  return {
-    ...raw,
-    nama: raw?.nama ?? raw?.schoolName ?? '-',
-    foto: raw?.foto ?? raw?.photoUrl ?? null,
-    status: raw?.status ?? '-',
-    alamat: raw?.alamat ?? raw?.address ?? '-',
-    npsn: raw?.npsn ?? '-',
-    siswa: raw?.siswa ?? raw?.studentCount ?? '-',
-  };
-}
-
-function ImageBox({ src, alt, className, fallbackSrc = null }) {
-  const imageUrl = resolveImageUrl(src);
-  const resolvedSrc = imageUrl || fallbackSrc;
-
-  if (!resolvedSrc) {
-    return (
-      <div className={`flex flex-col items-center justify-center gap-2 bg-slate-100 text-slate-400 ${className}`}>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.5" />
-          <circle cx="9" cy="10" r="1.5" fill="currentColor" />
-          <path d="m4 16 4.5-4.5a1 1 0 0 1 1.4 0L13 14.6l1.6-1.6a1 1 0 0 1 1.4 0L20 16.9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-        <span className="text-[11px] font-semibold">Belum ada gambar</span>
-      </div>
-    );
-  }
-
-  return <img src={resolvedSrc} alt={alt} className={className} />;
-}
+const DEFAULT_CATATAN = [
+  {
+    type: 'success',
+    judul: 'Menu diterima sesuai jadwal',
+    meta: 'Hari ini, pukul 10:00 WIB - Kepala Sekolah',
+    kutipan: null,
+  },
+  {
+    type: 'warning',
+    judul: 'Masalah kemasan ditemukan',
+    meta: 'Kemarin, 10:30 WIB - Administrasi Sekolah',
+    kutipan: 'Beberapa tutup wadah longgar saat pengiriman, pihak dapur telah diberitahu.',
+  },
+];
 
 export default function ProfilSekolah() {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const { user } = useAuth();
-  const idSekolah = id || user?.sekolahId || user?.schoolId || user?.id || null;
-  const hasSekolahId = Boolean(idSekolah);
+  const idSekolah = 1;
 
-  const [sekolah, setSekolah] = useState(hasSekolahId ? null : DEFAULT_SEKOLAH);
-  const [sppg, setSppg] = useState(hasSekolahId ? null : DEFAULT_SPPG);
-  const [menuHarian, setMenuHarian] = useState(hasSekolahId ? [] : DEFAULT_MENU_HARIAN);
-  const [dokumentasi, setDokumentasi] = useState(hasSekolahId ? [] : DEFAULT_DOKUMENTASI);
-  const [nutrisi, setNutrisi] = useState(hasSekolahId ? [] : DEFAULT_NUTRISI);
-  const [catatan, setCatatan] = useState(hasSekolahId ? [] : DEFAULT_CATATAN);
-  const [loading, setLoading] = useState(hasSekolahId);
+  const [sekolah, setSekolah]         = useState(null);
+  const [sppg, setSppg]               = useState(null);
+  const [menuHarian, setMenuHarian]   = useState([]);
+  const [dokumentasi, setDokumentasi] = useState([]);
+  const [nutrisi, setNutrisi]         = useState([]);
+  const [catatan, setCatatan]         = useState([]);
+  const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
-    if (!idSekolah) return;
-
     const fetchAll = async () => {
       try {
         const [resSekolah, resSppg, resMenu, resDokumentasi, resNutrisi, resCatatan] =
           await Promise.allSettled([
-            getSekolahById(idSekolah),
-            getSekolahSppg(idSekolah),
-            getSekolahMenuHarian(idSekolah),
-            getSekolahDokumentasi(idSekolah),
-            getSekolahNutrisi(idSekolah),
-            getSekolahCatatan(idSekolah),
+            fetch(`/api/sekolah/${idSekolah}`).then(r => r.json()),
+            fetch(`/api/sekolah/${idSekolah}/sppg`).then(r => r.json()),
+            fetch(`/api/sekolah/${idSekolah}/menu-harian`).then(r => r.json()),
+            fetch(`/api/sekolah/${idSekolah}/dokumentasi`).then(r => r.json()),
+            fetch(`/api/sekolah/${idSekolah}/nutrisi`).then(r => r.json()),
+            fetch(`/api/sekolah/${idSekolah}/catatan`).then(r => r.json()),
           ]);
 
-        setSekolah(
-          resSekolah.status === 'fulfilled'
-            ? normalizeSekolahData(resSekolah.value?.data?.data ?? resSekolah.value?.data ?? DEFAULT_SEKOLAH)
-            : DEFAULT_SEKOLAH,
-        );
-        setSppg(
-          resSppg.status === 'fulfilled'
-            ? (resSppg.value?.data?.data ?? resSppg.value?.data ?? DEFAULT_SPPG)
-            : DEFAULT_SPPG,
-        );
-        setMenuHarian(
-          resMenu.status === 'fulfilled'
-            ? (resMenu.value?.data?.data ?? resMenu.value?.data ?? DEFAULT_MENU_HARIAN)
-            : DEFAULT_MENU_HARIAN,
-        );
-        setNutrisi(
-          resNutrisi.status === 'fulfilled'
-            ? (resNutrisi.value?.data?.data ?? resNutrisi.value?.data ?? DEFAULT_NUTRISI)
-            : DEFAULT_NUTRISI,
-        );
+        setSekolah(resSekolah.status     === 'fulfilled' ? resSekolah.value     : DEFAULT_SEKOLAH);
+        setSppg(resSppg.status           === 'fulfilled' ? resSppg.value        : DEFAULT_SPPG);
+        setMenuHarian(resMenu.status     === 'fulfilled' ? resMenu.value        : DEFAULT_MENU_HARIAN);
+        setNutrisi(resNutrisi.status     === 'fulfilled' ? resNutrisi.value     : DEFAULT_NUTRISI);
 
         // ── Dokumentasi: gabung localStorage di depan, max 3 tampil ──
         const baseDokum = resDokumentasi.status === 'fulfilled'
-          ? (resDokumentasi.value?.data?.data ?? resDokumentasi.value?.data ?? DEFAULT_DOKUMENTASI)
+          ? resDokumentasi.value
           : DEFAULT_DOKUMENTASI;
         const savedDocs = localStorage.getItem(STORAGE_KEY_DOCS);
         if (savedDocs) {
@@ -162,11 +115,12 @@ export default function ProfilSekolah() {
 
         // ── Catatan: gabung localStorage di depan ──
         const baseCatatan = resCatatan.status === 'fulfilled'
-          ? (resCatatan.value?.data?.data ?? resCatatan.value?.data ?? DEFAULT_CATATAN)
+          ? resCatatan.value
           : DEFAULT_CATATAN;
         const savedNotes = localStorage.getItem(STORAGE_KEY_NOTES);
         if (savedNotes) {
           const parsed = JSON.parse(savedNotes);
+          setDokumentasi(prev => prev); // no-op, just keep docs
           setCatatan([...parsed, ...baseCatatan]);
         } else {
           setCatatan(baseCatatan);
@@ -206,7 +160,7 @@ export default function ProfilSekolah() {
       <main className="flex-1 w-full max-w-5xl mx-auto py-5 px-4">
 
         {/* Tombol Kembali */}
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[20px] font-bold text-gray-800 mb-4 hover:opacity-70">
+        <button className="flex items-center gap-2 text-[20px] font-bold text-gray-800 mb-4 hover:opacity-70">
           <img src={arrowBack} alt="" className="w-3.5 h-3.5 flex-shrink-0" />
           Kembali
         </button>
@@ -218,20 +172,20 @@ export default function ProfilSekolah() {
 
             {/* ── Header Sekolah ── */}
             <div className="bg-white rounded-2xl px-8 py-8 flex items-center gap-6">
-              <ImageBox
-                src={sekolah.foto}
+              <img
+                src={sekolah.foto || ''}
                 alt={sekolah.nama}
                 className="w-36 h-24 rounded-xl object-cover flex-shrink-0"
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap mb-2">
-                  <h2 className="text-[30px] font-bold text-gray-900">{getDisplayValue(sekolah.nama)}</h2>
+                  <h2 className="text-[30px] font-bold text-gray-900">{sekolah.nama}</h2>
                   <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 text-[14px] font-medium px-3 py-1 rounded-full border border-green-200">
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                       <circle cx="5" cy="5" r="4" stroke="#16a34a" strokeWidth="1.5" />
                       <polyline points="3,5 4.2,6.2 7,3.5" stroke="#16a34a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                    {getDisplayValue(sekolah.status)}
+                    {sekolah.status}
                   </span>
                 </div>
                 <p className="text-[13.5px] text-gray-500 flex items-start gap-1 mb-1">
@@ -239,11 +193,11 @@ export default function ProfilSekolah() {
                     <path d="M8 2C5.8 2 4 3.8 4 6c0 3.5 4 8 4 8s4-4.5 4-8c0-2.2-1.8-4-4-4z" />
                     <circle cx="8" cy="6" r="1.5" />
                   </svg>
-                  {getDisplayValue(sekolah.alamat)}
+                  {sekolah.alamat}
                 </p>
                 <p className="text-[13.5px] text-gray-500 flex items-center gap-1.5">
                   <img src={iconPeople} alt="" className="w-3.5 h-3 flex-shrink-0" />
-                  {getDisplayValue(sekolah.siswa)} Siswa Terdaftar
+                  {sekolah.siswa} Siswa Terdaftar
                 </p>
               </div>
             </div>
@@ -264,7 +218,7 @@ export default function ProfilSekolah() {
                     {menuHarian.map((item, index) => (
                       <div key={index} className="bg-white border border-gray-100 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-3">
-                          <span className="text-sm font-semibold text-gray-800">{getDisplayValue(item.hari)}</span>
+                          <span className="text-sm font-semibold text-gray-800">{item.hari}</span>
                           {item.isToday && (
                             <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">Today</span>
                           )}
@@ -273,7 +227,7 @@ export default function ProfilSekolah() {
                           {item.menu.map((m, i) => (
                             <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
                               <span className="w-1.5 h-1.5 rounded-full bg-gray-300 flex-shrink-0" />
-                              {getDisplayValue(m)}
+                              {m}
                             </li>
                           ))}
                         </ul>
@@ -291,13 +245,13 @@ export default function ProfilSekolah() {
                   <div className="grid grid-cols-3 gap-2">
                     {dokumentasi.slice(0, 3).map((doc, i) => (
                       <div key={i} className="relative rounded-xl overflow-hidden aspect-[4/3]">
-                        <ImageBox
+                        <img
                           src={doc.fotoUrl || doc.foto}
                           alt={doc.caption}
                           className="w-full h-full object-cover"
                         />
                         <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[9px] px-1.5 py-1 leading-tight">
-                          {getDisplayValue(doc.caption)}
+                          {doc.caption}
                         </div>
                       </div>
                     ))}
@@ -350,14 +304,14 @@ export default function ProfilSekolah() {
                     <p className="text-base font-bold text-gray-700 mb-2">SPPG Bersangkutan</p>
                     <div className="bg-blue-50 rounded-xl p-4">
                       <p className="text-[10px] font-bold text-blue-500 uppercase tracking-wider mb-1">Penyedia Layanan</p>
-                      <p className="text-[18px] font-bold text-blue-900 mb-1">{getDisplayValue(sppg.nama)}</p>
-                      <p className="text-[13px] text-blue-700 mb-3 leading-relaxed">{getDisplayValue(sppg.alamat)}</p>
+                      <p className="text-[18px] font-bold text-blue-900 mb-1">{sppg.nama}</p>
+                      <p className="text-[13px] text-blue-700 mb-3 leading-relaxed">{sppg.alamat}</p>
                       <p className="text-[13px] text-blue-700 flex items-center gap-1.5 mb-3">
                         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                           <rect x="1" y="5" width="14" height="8" rx="2" />
                           <path d="M4 5V4a4 4 0 0 1 8 0v1" />
                         </svg>
-                        Kapasitas : {getDisplayValue(sppg.kapasitas)} porsi/hari
+                        Kapasitas : {sppg.kapasitas} porsi/hari
                       </p>
                       <button className="w-full bg-blue-600 hover:bg-blue-700 active:scale-95 transition-all text-white text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-2">
                         Lihat Profil SPPG
@@ -401,6 +355,8 @@ export default function ProfilSekolah() {
           <div className="bg-white rounded-2xl p-6 text-center text-gray-500">Data sekolah tidak ditemukan.</div>
         )}
       </main>
+
+      <Footer />
     </div>
   );
 }

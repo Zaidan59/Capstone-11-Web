@@ -19,7 +19,6 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import { useMapsPage } from "../../../hooks/useMapsPage";
-import { resolveImageUrl } from "../../../utils/imageUrl";
 
 const defaultCenter = [-6.225, 106.795];
 
@@ -106,7 +105,6 @@ function PopupCard({ item, point, onClose }) {
 
   const isSppg = item.type === "sppg";
   const profileLabel = isSppg ? "Lihat Profil SPPG" : "Lihat Profil Sekolah";
-  const imageUrl = resolveImageUrl(item?.photoUrl);
 
   return (
     <article
@@ -115,11 +113,7 @@ function PopupCard({ item, point, onClose }) {
     >
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="h-[128px] bg-[linear-gradient(135deg,#f8f6ef_0%,#e7dac8_50%,#c7b59c_100%)]">
-          {imageUrl ? (
-            <img src={imageUrl} alt={item.name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_36%)]" />
-          )}
+          <div className="h-full w-full bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.8)_0%,rgba(255,255,255,0)_36%)]" />
         </div>
 
         <div className="p-4">
@@ -214,7 +208,7 @@ export default function Maps() {
     sppgItems: sppgData,
     schoolItems: schoolData,
     isLoading,
-    error,
+    isUsingFallback,
   } = useMapsPage();
   const [selected, setSelected] = useState(null);
   const [popupPoint, setPopupPoint] = useState(null);
@@ -235,7 +229,6 @@ export default function Maps() {
     () => schoolItems.filter(hasValidLatLng),
     [schoolItems],
   );
-  const hasItems = validSppgItems.length > 0 || validSchoolItems.length > 0;
   const allItems = useMemo(
     () => [...validSppgItems, ...validSchoolItems],
     [validSppgItems, validSchoolItems],
@@ -254,19 +247,12 @@ export default function Maps() {
     if (!selectedItem) return [];
 
     if (selectedItem.type === "sppg") {
-      const linkedSchools =
-        Array.isArray(selectedItem.schools) && selectedItem.schools.length > 0
-          ? selectedItem.schools
-              .map((schoolId) =>
-                validSchoolItems.find((school) => school.id === schoolId),
-              )
-              .filter(Boolean)
-          : validSchoolItems.filter((school) => school.sppgId === selectedItem.id);
-
-      return linkedSchools.map((school) => [
-        getPosition(selectedItem),
-        getPosition(school),
-      ]);
+      return selectedItem.schools
+        .map((schoolId) =>
+          validSchoolItems.find((school) => school.id === schoolId),
+        )
+        .filter(Boolean)
+        .map((school) => [getPosition(selectedItem), getPosition(school)]);
     }
 
     const sppg = validSppgItems.find((item) => item.id === selectedItem.sppgId);
@@ -355,14 +341,9 @@ export default function Maps() {
               Memuat data peta...
             </div>
           ) : null}
-          {error ? (
-            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-700 shadow">
-              {error}
-            </div>
-          ) : null}
-          {!isLoading && !error && !hasItems ? (
-            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 shadow">
-              Data peta belum tersedia
+          {isUsingFallback ? (
+            <div className="absolute right-5 top-5 z-[500] rounded-xl bg-amber-100 px-3 py-2 text-xs font-bold text-amber-800 shadow">
+              Menampilkan data contoh
             </div>
           ) : null}
         </div>
