@@ -60,6 +60,13 @@ export const mapSppgForMapPage = (item, index) => {
 };
 
 export const mapSchoolForMapPage = (item, index) => {
+  const rawSppgId =
+    item?.sppgId ??
+    item?.sppg_id ??
+    item?.sppg?.id ??
+    item?.sppg?.sppgId ??
+    null;
+
   return {
     id: String(item?.id ?? item?._id ?? item?.sekolahId ?? `school-${index + 1}`),
     name: getDisplayValue(item?.name ?? item?.nama ?? item?.schoolName),
@@ -86,11 +93,6 @@ export const mapSchoolForMapPage = (item, index) => {
       null,
     lat: toNumber(item?.lat),
     lng: toNumber(item?.lng),
-    sppgId:
-      item?.sppgId ??
-      item?.sppg_id ??
-      item?.sppg?.id ??
-      item?.sppg?.sppgId ??
-      null,
+    sppgId: rawSppgId !== null && rawSppgId !== undefined ? String(rawSppgId) : null,
   };
 };

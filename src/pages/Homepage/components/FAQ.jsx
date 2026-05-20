@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { HiOutlineChevronDown } from "react-icons/hi2";
-import Footer from "../../../components/common/Footer";
 
 function FAQ() {
   const faqs = [

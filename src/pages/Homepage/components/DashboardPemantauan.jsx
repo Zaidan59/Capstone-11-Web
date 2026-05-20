@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import DragScroller from "../../../components/common/DragScroller";
 import { useDashboardPemantauan } from "../../../hooks/useDashboardPemantauan";
 import { resolveImageUrl } from "../../../utils/imageUrl";
+import defaultSppgImage from "../../../assets/ProfilSPPG.png";
+import defaultSchoolImage from "../../../assets/defaultSekolah.png";
 
 function StatItem({ label, value, valueClassName = "text-slate-900" }) {
   return (
@@ -68,32 +70,14 @@ function SchoolIcon() {
 }
 
 function SppgCard({ item }) {
-  const imageUrl = resolveImageUrl(item?.photoUrl);
+  const imageUrl = resolveImageUrl(item?.photoUrl, defaultSppgImage);
 
   return (
     <Link to={`/profil/sppg/${item.id}`} className="w-[435px] flex-shrink-0 text-decoration-none hover:text-decoration-none">
       <article className="flex flex-col gap-6 rounded-[18px] bg-white p-6 shadow-[0px_4px_4px_0_rgba(0,0,0,0.25)] hover:shadow-[0px_8px_12px_0_rgba(0,0,0,0.35)] transition-shadow h-full cursor-pointer">
       <div className="flex items-start gap-4">
         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#e7f0fd]">
-          {imageUrl ? (
-            <img src={imageUrl} alt={item.title} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#136dec] shadow-[0_6px_18px_rgba(19,109,236,0.12)]">
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path
-                  d="M4 20V10H2V8H6C5.45 8 4.97917 7.80417 4.5875 7.4125C4.19583 7.02083 4 6.55 4 6V2H9V6C9 6.55 8.80417 7.02083 8.4125 7.4125C8.02083 7.80417 7.55 8 7 8H14V5C14 4.71667 13.9042 4.47917 13.7125 4.2875C13.5208 4.09583 13.2833 4 13 4C12.7167 4 12.4792 4.09583 12.2875 4.2875C12.0958 4.47917 12 4.71667 12 5H10C10 4.16667 10.2917 3.45833 10.875 2.875C11.4583 2.29167 12.1667 2 13 2C13.8333 2 14.5417 2.29167 15.125 2.875C15.7083 3.45833 16 4.16667 16 5V8H22V10H20V20H4ZM7 18H12V12H7V18ZM14 18H19V12H14V18Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </div>
-          )}
+          <img src={imageUrl} alt={item.title} className="h-full w-full object-cover" />
         </div>
 
         <div className="min-w-0">
@@ -151,33 +135,14 @@ function SppgCard({ item }) {
 }
 
 function SchoolCard({ item }) {
-  const imageUrl = resolveImageUrl(item?.photoUrl);
-  const menuImageUrl = resolveImageUrl(item?.menuImageUrl);
+  const imageUrl = resolveImageUrl(item?.photoUrl, defaultSchoolImage);
 
   return (
     <Link to={`/profil/sekolah/${item.id}`} className="w-[435px] flex-shrink-0 text-decoration-none hover:text-decoration-none">
       <article className="flex flex-col gap-6 rounded-[18px] bg-white p-6 shadow-[0px_4px_4px_0_rgba(0,0,0,0.25)] hover:shadow-[0px_8px_12px_0_rgba(0,0,0,0.35)] transition-shadow h-full cursor-pointer">
       <div className="flex items-start gap-4">
         <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[#e7f0fd]">
-          {imageUrl ? (
-            <img src={imageUrl} alt={item.title} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-[#136dec] shadow-[0_6px_18px_rgba(19,109,236,0.12)]">
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path
-                  d="M3 21V10L12 4L21 10V21H13V14H11V21H3ZM6 19H9V16H6V19ZM6 14H9V11H6V14ZM15 19H18V16H15V19ZM15 14H18V11H15V14Z"
-                  fill="currentColor"
-                />
-              </svg>
-            </div>
-          )}
+          <img src={imageUrl} alt={item.title} className="h-full w-full object-cover" />
         </div>
 
         <div className="min-w-0">
@@ -216,13 +181,6 @@ function SchoolCard({ item }) {
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl bg-slate-50 p-4">
-        {menuImageUrl ? (
-          <img
-            src={menuImageUrl}
-            alt={`Menu ${item.title}`}
-            className="h-28 w-full rounded-lg object-cover"
-          />
-        ) : null}
         <p className="text-xs font-bold uppercase text-slate-400">
           {item.menuLabel}
         </p>

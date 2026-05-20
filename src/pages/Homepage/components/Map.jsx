@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import L from "leaflet";
 import {
   FiArrowRight,
@@ -210,6 +210,7 @@ function Legend() {
 }
 
 export default function Maps() {
+  const navigate = useNavigate();
   const {
     sppgItems: sppgData,
     schoolItems: schoolData,
@@ -296,14 +297,16 @@ export default function Maps() {
               Pilih wilayah untuk melihat detail SPPG dan unit sekolah terdekat.
             </p>
           </div>
-<button
-  type="button"
-  onClick={() => { window.location.href = "/maps"; }}
-  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-[#136DEC] transition"
->
-  View Full Map
-  <FiExternalLink className="h-4 w-4" />
-</button>
+          <button
+            type="button"
+            onClick={() => {
+              navigate("/maps");
+            }}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:text-[#136DEC] transition"
+          >
+            View Full Map
+            <FiExternalLink className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="relative h-[480px] w-full overflow-hidden rounded-2xl border border-slate-200 shadow-[0_8px_30px_rgba(15,23,42,0.10)]">

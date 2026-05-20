@@ -23,3 +23,22 @@ dist-ssr
 *.sln
 *.sw?
 
+# Local environment files
+.env.local
+.env.*.local
+
+# Vite / cache
+.vite
+.cache
+
+# Coverage and build outputs
+coverage/
+
+# OS and temp files
+Thumbs.db
+Desktop.ini
+
+# Keys and certs
+*.key
+*.pem
+

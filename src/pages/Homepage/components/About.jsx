@@ -1,7 +1,9 @@
 import React, { useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function About() {
   const aboutRef = useRef(null);
+  const navigate = useNavigate();
 
   const featureCards = [
     {
@@ -152,7 +154,7 @@ export default function About() {
         <div className="flex justify-center">
           <button
             onClick={() => {
-              window.location.href = "/maps";
+              navigate("/maps");
             }}
             className="inline-flex items-center justify-center rounded-xl bg-[#136dec] px-8 py-3 text-base font-bold text-white"
           >
