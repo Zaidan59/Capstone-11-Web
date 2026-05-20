@@ -11,7 +11,7 @@ import IconCeklis from "../../assets/Icon_ceklis.png";
 import IconFeedback from "../../assets/Icon_feedback.png";
 import IconWarning from "../../assets/Icon_warning.png";
 import logo from "../../assets/Logo.png";
-import IconProfile from "../../assets/Icon_profile.png";
+import IconProfile from "../../assets/icon_profile.png";
 import { useAuth } from '../../hooks/useAuth';
 import { getSPPGById } from '../../services/sppgService';
 import { getNotificationsBySppgId } from '../../services/notificationService';
