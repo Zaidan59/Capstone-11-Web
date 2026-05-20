@@ -26,6 +26,6 @@ cp .env.example .env
 Available variables:
 
 - `VITE_API_URL`: API base URL (default app code uses `http://localhost:3000/api`).
-- `VITE_AUTH_MODE`: login mode.
-	- `mock` -> bypass backend and allow demo login.
+- `VITE_AUTH_MODE`: login mode (currently `api` is implemented in the app).
 	- `api` -> call backend login endpoint (`/auth/login`).
+	- `mock` -> reserved for future local/demo auth mode (not active in current codebase).

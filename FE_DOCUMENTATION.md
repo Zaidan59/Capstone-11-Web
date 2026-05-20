@@ -48,12 +48,14 @@ npm run preview
 File `.env`:
 ```env
 VITE_API_URL=http://localhost:3000/api
-VITE_AUTH_MODE=Backend
+VITE_AUTH_MODE=api
 ```
 
 Keterangan:
 - `VITE_API_URL`: base URL API backend.
-- `VITE_AUTH_MODE`: mode autentikasi FE (saat ini dipakai untuk backend mode).
+- `VITE_AUTH_MODE`: mode autentikasi FE.
+  - `api`: mode yang aktif saat ini (login ke endpoint backend `/auth/login`).
+  - `mock`: disiapkan untuk mode demo/lokal, namun belum aktif di kode saat ini.
 
 ## 4. Struktur Folder Penting
 
