@@ -29,7 +29,7 @@ function FAQ() {
 
   return (
     <>
-      <div className="bg-white text-slate-900 py-16">
+      <div className="bg-slate-50 text-slate-900 py-16">
         <div className="max-w-4xl mx-auto px-6">
           
           <h1 className="text-[40px] font-bold text-center mb-12 text-[#1a202c]">

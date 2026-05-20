@@ -4,6 +4,26 @@ import { useDashboardPemantauan } from "../../../hooks/useDashboardPemantauan";
 import { resolveImageUrl } from "../../../utils/imageUrl";
 import defaultSppgImage from "../../../assets/ProfilSPPG.png";
 import defaultSchoolImage from "../../../assets/defaultSekolah.png";
+import sekolah1 from "../../../assets/sekolah1.png";
+import sekolah2 from "../../../assets/sekolah2.png";
+import sekolah3 from "../../../assets/sekolah3.png";
+
+const schoolFallbackImages = [defaultSchoolImage, sekolah1, sekolah2, sekolah3];
+
+function hashString(value) {
+  let hash = 0;
+  const str = String(value ?? "");
+  for (let index = 0; index < str.length; index += 1) {
+    hash = (hash << 5) - hash + str.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getSchoolFallbackImageById(id) {
+  const imageIndex = hashString(id) % schoolFallbackImages.length;
+  return schoolFallbackImages[imageIndex];
+}
 
 function StatItem({ label, value, valueClassName = "text-slate-900" }) {
   return (
@@ -135,7 +155,8 @@ function SppgCard({ item }) {
 }
 
 function SchoolCard({ item }) {
-  const imageUrl = resolveImageUrl(item?.photoUrl, defaultSchoolImage);
+  const fallbackImage = getSchoolFallbackImageById(item?.id);
+  const imageUrl = resolveImageUrl(item?.photoUrl, fallbackImage);
 
   return (
     <Link to={`/profil/sekolah/${item.id}`} className="w-[435px] flex-shrink-0 text-decoration-none hover:text-decoration-none">
