@@ -16,6 +16,26 @@ import { useAuth } from '../../hooks/useAuth';
 import { getSPPGById } from '../../services/sppgService';
 import { getNotificationsBySppgId } from '../../services/notificationService';
 import { getDisplayValue } from '../../utils/display';
+import { resolveImageUrl } from '../../utils/imageUrl';
+
+function getImageSource(raw) {
+  return (
+    raw?.photoUrl ??
+    raw?.photo_url ??
+    raw?.imageUrl ??
+    raw?.image_url ??
+    raw?.logoUrl ??
+    raw?.logo_url ??
+    raw?.avatarUrl ??
+    raw?.avatar_url ??
+    raw?.profilePhotoUrl ??
+    raw?.profile_photo_url ??
+    raw?.image ??
+    raw?.foto ??
+    raw?.gambar ??
+    null
+  );
+}
 
 const DashboardSPPG = () => {
   const { user } = useAuth();
@@ -64,6 +84,7 @@ const DashboardSPPG = () => {
   const sppgName = getDisplayValue(sppgData?.name);
   const sppgAddress = getDisplayValue(sppgData?.address);
   const sppgStatus = getDisplayValue(sppgData?.status);
+  const sppgPhoto = resolveImageUrl(getImageSource(sppgData), IconBuilding);
   const displayName = user?.name || user?.identifier || 'Admin SPPG';
   const schoolCount = servedSchools.length > 0 ? servedSchools.length : '-';
   const uploadPreviewItems =
@@ -71,7 +92,7 @@ const DashboardSPPG = () => {
       ? servedSchools.slice(0, 4).map((school) => ({
           school: getDisplayValue(school?.schoolName ?? school?.name),
           time: '-',
-          img: null,
+          img: resolveImageUrl(getImageSource(school)),
         }))
       : [{ school: '-', time: '-', img: null }];
   const feedbackItems =
@@ -169,7 +190,7 @@ const DashboardSPPG = () => {
           <div className="bg-white p-8 rounded-xl border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-8 shadow-sm">
             <div className="flex items-center gap-8 w-full">
               <div className="w-32 h-32 bg-[#F0F7FF] rounded-xl flex items-center justify-center">
-                <img src={IconBuilding} alt="Building Icon" className="w-14 h-14 object-contain" />
+                <img src={sppgPhoto} alt={sppgName} className="w-full h-full rounded-xl object-cover" />
               </div>
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-4">

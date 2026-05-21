@@ -39,6 +39,25 @@ const withUnit = (value, unit) => {
   return `${value}${unit}`;
 };
 
+function getImageSource(raw) {
+  return (
+    raw?.photoUrl ??
+    raw?.photo_url ??
+    raw?.imageUrl ??
+    raw?.image_url ??
+    raw?.logoUrl ??
+    raw?.logo_url ??
+    raw?.avatarUrl ??
+    raw?.avatar_url ??
+    raw?.profilePhotoUrl ??
+    raw?.profile_photo_url ??
+    raw?.image ??
+    raw?.foto ??
+    raw?.gambar ??
+    null
+  );
+}
+
 function ImageBox({ src, alt, className }) {
   const imageUrl = resolveImageUrl(src);
 
@@ -135,29 +154,38 @@ export default function ProfilSPPG() {
           location: school?.address ?? "-",
           studentCount: school?.studentCount ?? "-",
           siswaTotal: school?.siswaTotal ?? "-",
-          image: school?.photoUrl ?? null,
+          image: getImageSource(school),
         }));
 
         setSppgData({
           ...emptySppg,
           id: data?.id ?? null,
           name: data?.name ?? "-",
-          image:
-            data?.photoUrl ??
-            data?.photo_url ??
-            data?.imageUrl ??
-            data?.image_url ??
-            data?.logoUrl ??
-            data?.logo_url ??
-            null,
+          image: getImageSource(data),
           location: data?.address ?? "-",
           description: data?.description ?? "-",
           longDescription: data?.longDescription ?? "-",
+          menuPeriod: data?.menuPeriod ?? "-",
           stats: {
             schoolsServed: mappedSchools.length || "-",
             dailyCapacity: data?.capacityPerDay ?? "-",
             staffCount: data?.staffCount ?? "-",
           },
+          nutrition: {
+            calories: data?.nutrition?.calories ?? "-",
+            protein: data?.nutrition?.protein ?? "-",
+            carbs: data?.nutrition?.carbs ?? data?.nutrition?.carbohydrate ?? "-",
+            fat: data?.nutrition?.fat ?? "-",
+            fiber: data?.nutrition?.fiber ?? "-",
+          },
+          weeklyMenu: Array.isArray(data?.weeklyMenu) && data.weeklyMenu.length
+            ? data.weeklyMenu.map((menu) => ({
+                day: menu?.day ?? "-",
+                title: menu?.title ?? "-",
+                items: Array.isArray(menu?.items) && menu.items.length ? menu.items : ["-"],
+                image: getImageSource(menu),
+              }))
+            : emptySppg.weeklyMenu,
           schools: mappedSchools,
         });
       })
