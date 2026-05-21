@@ -31,6 +31,25 @@ const DEFAULT_DOCS = Array.from({ length: 3 }, () => ({
   time: "-",
 }));
 
+function getImageSource(raw) {
+  return (
+    raw?.foto ??
+    raw?.photoUrl ??
+    raw?.photo_url ??
+    raw?.imageUrl ??
+    raw?.image_url ??
+    raw?.logoUrl ??
+    raw?.logo_url ??
+    raw?.avatarUrl ??
+    raw?.avatar_url ??
+    raw?.profilePhotoUrl ??
+    raw?.profile_photo_url ??
+    raw?.image ??
+    raw?.gambar ??
+    null
+  );
+}
+
 function ImageBox({ src, alt, className, fallbackSrc = null }) {
   const imageUrl = resolveImageUrl(src);
   const resolvedSrc = imageUrl || fallbackSrc;
@@ -61,6 +80,7 @@ function normalizeSekolahData(raw) {
   return {
     ...raw,
     nama: raw?.nama ?? raw?.schoolName ?? "-",
+    foto: getImageSource(raw),
     alamat: raw?.alamat ?? raw?.address ?? "-",
     affiliatedKitchen: raw?.affiliatedKitchen ?? raw?.sppgName ?? raw?.sppg?.name ?? "-",
     menuImage: raw?.menuImage ?? raw?.menu_image_url ?? null,
@@ -333,7 +353,12 @@ export default function DashboardSekolah() {
           <div className="bg-white rounded-xl shadow p-6 mb-6">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
               <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl bg-[#EEF6FF] flex items-center justify-center flex-shrink-0">
-                <img src={iconSekolah} alt="Ikon Sekolah" className="w-14 h-14 md:w-16 md:h-16 object-contain" />
+                <ImageBox
+                  src={sekolah?.foto}
+                  alt={sekolah?.nama ?? "Sekolah"}
+                  fallbackSrc={iconSekolah}
+                  className="w-full h-full rounded-3xl object-cover"
+                />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

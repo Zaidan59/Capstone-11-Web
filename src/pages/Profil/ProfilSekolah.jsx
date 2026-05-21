@@ -62,12 +62,31 @@ const DEFAULT_NUTRISI = [
 
 const DEFAULT_CATATAN = [];
 
+function getImageSource(raw) {
+  return (
+    raw?.foto ??
+    raw?.photoUrl ??
+    raw?.photo_url ??
+    raw?.imageUrl ??
+    raw?.image_url ??
+    raw?.logoUrl ??
+    raw?.logo_url ??
+    raw?.avatarUrl ??
+    raw?.avatar_url ??
+    raw?.profilePhotoUrl ??
+    raw?.profile_photo_url ??
+    raw?.image ??
+    raw?.gambar ??
+    null
+  );
+}
+
 function normalizeSekolahData(raw) {
   if (!raw) return DEFAULT_SEKOLAH;
   return {
     ...raw,
     nama: raw?.nama ?? raw?.schoolName ?? '-',
-    foto: raw?.foto ?? raw?.photoUrl ?? null,
+    foto: getImageSource(raw),
     status: raw?.status ?? '-',
     alamat: raw?.alamat ?? raw?.address ?? '-',
     npsn: raw?.npsn ?? '-',
