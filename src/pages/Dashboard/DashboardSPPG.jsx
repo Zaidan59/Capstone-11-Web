@@ -211,11 +211,11 @@ const DashboardSPPG = () => {
                 <div className="flex gap-4 mt-3 text-sm font-bold text-gray-600 uppercase tracking-wide">
                   <span className="flex items-center gap-2">
                     <img src={IconEducation} alt="Education Icon" className="w-7 h-7 object-contain" />
-                    {schoolCount} Schools Served
+                    {schoolCount} Sekolah Dilayani
                   </span>
                   <span className="flex items-center gap-2 pl-8">
                     <img src={IconCalendar} alt="Calendar Icon" className="w-6 h-6 object-contain" />
-                    Today: {todayLabel}
+                    Hari Ini: {todayLabel}
                   </span>
                 </div>
               </div>
@@ -224,7 +224,7 @@ const DashboardSPPG = () => {
               <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-medium flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap">
                 <img src={IconPrint} alt="Print Icon" className="w-3 h-3 object-contain"
                   style={{ filter: 'brightness(0) invert(1)' }} />
-                Print Labels
+                Cetak Label
               </button>
             </div>
           </div>
@@ -232,7 +232,7 @@ const DashboardSPPG = () => {
           {/* Section Title 1 */}
           <div className="flex items-center gap-3 mt-10 mb-4">
             <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
-            <h2 className="text-xl font-bold text-gray-900">Upload Weekly Menu (CSV)</h2>
+            <h2 className="text-xl font-bold text-gray-900">Unggah Menu Mingguan (CSV)</h2>
           </div>
 
           {/* UPLOAD WEEKLY MENU SECTION */}
@@ -255,15 +255,15 @@ const DashboardSPPG = () => {
             <div className="border-t border-gray-100" />
 
             <div className="space-y-3">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Preview (Last Uploaded)</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Pratinjau (Terakhir Diunggah)</p>
               <div className="rounded-xl border border-gray-200 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-200" style={{ backgroundColor: '#F8FAFC' }}>
-                      <th className="text-left px-6 py-4 font-bold text-gray-700">Day</th>
-                      <th className="text-left px-6 py-4 font-bold text-gray-700">Main Dish</th>
-                      <th className="text-left px-6 py-4 font-bold text-gray-700">Side Dish</th>
-                      <th className="text-left px-6 py-4 font-bold text-gray-700">Fruit</th>
+                      <th className="text-left px-6 py-4 font-bold text-gray-700">Hari</th>
+                      <th className="text-left px-6 py-4 font-bold text-gray-700">Hidangan Utama</th>
+                      <th className="text-left px-6 py-4 font-bold text-gray-700">Menu Pendamping</th>
+                      <th className="text-left px-6 py-4 font-bold text-gray-700">Buah</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -291,7 +291,7 @@ const DashboardSPPG = () => {
 
             <div className="flex justify-end">
               <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95">
-                Confirm Menu
+                Konfirmasi Menu
               </button>
             </div>
           </div>
@@ -299,7 +299,7 @@ const DashboardSPPG = () => {
           {/* Section Title 2 */}
           <div className="flex items-center gap-3 mt-10 mb-4">
             <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
-            <h2 className="text-xl font-bold text-gray-900">Upload Nutrition Data (CSV)</h2>
+            <h2 className="text-xl font-bold text-gray-900">Unggah Data Nutrisi (CSV)</h2>
           </div>
 
           {/* UPLOAD NUTRITION DATA SECTION */}
@@ -311,29 +311,29 @@ const DashboardSPPG = () => {
               >
                 <input id="nutritionCsvInput" type="file" accept=".csv" className="hidden" />
                 <img src={IconNutrisi} alt="Nutrisi Icon" className="w-8 h-8 object-contain" />
-                <p className="text-base font-bold text-gray-700">Nutrition CSV Upload</p>
+                <p className="text-base font-bold text-gray-700">Unggah CSV Nutrisi</p>
                 <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95">
-                  Upload CSV
+                  Unggah CSV
                 </button>
               </div>
 
               <div className="flex flex-col justify-center gap-5 w-full md:w-1/2">
                 <p className="text-gray-600 text-base leading-relaxed">
-                  Ensure your CSV includes columns for:{' '}
+                  Pastikan CSV kamu memiliki kolom:{' '}
                   <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Calories</span>,{' '}
                   <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Protein</span>,{' '}
                   <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Fat</span>,{' '}
-                  and <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Carbs</span>.
+                  dan <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Carbs</span>.
                 </p>
                 <div className="rounded-xl p-5 space-y-3" style={{ backgroundColor: '#136DEC0D', border: '1px solid #136DEC1A' }}>
                   <div className="flex justify-between items-center">
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Recent Upload Score</p>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Skor Unggahan Terakhir</p>
                     <span className="text-sm font-bold text-green-500">{nutritionCoverage === '-' ? '-' : 'VALID'}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div className="bg-blue-600 h-2 rounded-full" style={{ width: nutritionBarWidth }} />
                   </div>
-                  <p className="text-sm text-gray-500">Data Coverage: {nutritionCoverage}</p>
+                  <p className="text-sm text-gray-500">Cakupan Data: {nutritionCoverage}</p>
                 </div>
               </div>
             </div>
@@ -342,7 +342,7 @@ const DashboardSPPG = () => {
           {/* Section Title 3 */}
           <div className="flex items-center gap-3 mt-10 mb-4">
             <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
-            <h2 className="text-xl font-bold text-gray-900">Upload Meal Documentation</h2>
+            <h2 className="text-xl font-bold text-gray-900">Unggah Dokumentasi Makanan</h2>
           </div>
 
           {/* UPLOAD MEAL DOCUMENTATION SECTION */}
@@ -361,18 +361,18 @@ const DashboardSPPG = () => {
                 }}
               >
                 <img src={IconCamera} alt="Camera Icon" className="w-10 h-10 object-contain" />
-                <p className="text-sm text-gray-500 font-medium">Add Meal Photo</p>
+                <p className="text-sm text-gray-500 font-medium">Tambah Foto Makanan</p>
               </div>
 
               <div className="flex flex-col gap-5 w-full md:w-2/3 min-h-[320px]">
                 <div className="flex gap-4">
                   <div className="flex flex-col gap-1.5 flex-1">
-                    <label className="text-sm font-semibold text-gray-700">Preparation Date</label>
+                    <label className="text-sm font-semibold text-gray-700">Tanggal Persiapan</label>
                     <input type="text" placeholder="mm/dd/yyyy"
                       className="border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-400 outline-none focus:border-blue-400" />
                   </div>
                   <div className="flex flex-col gap-1.5 flex-1">
-                    <label className="text-sm font-semibold text-gray-700">Target School</label>
+                    <label className="text-sm font-semibold text-gray-700">Sekolah Tujuan</label>
                     <select className="border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:border-blue-400 bg-white">
                       <option>SDN 01 Kebayoran Baru</option>
                       <option>SMPN 12 Jakarta</option>
@@ -382,13 +382,13 @@ const DashboardSPPG = () => {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-semibold text-gray-700">Caption/Notes</label>
-                  <textarea placeholder="e.g. Fresh portion delivered to SDN 01" rows={3}
+                  <label className="text-sm font-semibold text-gray-700">Keterangan/Catatan</label>
+                  <textarea placeholder="Contoh: Porsi segar dikirim ke SDN 01" rows={3}
                     className="border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-400 outline-none focus:border-blue-400 resize-none" />
                 </div>
 
                 <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold transition-all active:scale-95 w-fit">
-                  Submit Documentation
+                  Kirim Dokumentasi
                 </button>
               </div>
             </div>
@@ -396,7 +396,7 @@ const DashboardSPPG = () => {
             <div className="border-t border-gray-100" />
 
             <div className="space-y-4">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Today's Uploads</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Unggahan Hari Ini</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {uploadPreviewItems.map((item, i) => (
                   <div key={i} className="rounded-xl overflow-hidden border border-gray-200">
@@ -420,7 +420,7 @@ const DashboardSPPG = () => {
           {/* Section Title 4 */}
           <div className="flex items-center gap-3 mt-10 mb-4">
             <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">4</div>
-            <h2 className="text-xl font-bold text-gray-900">School Feedback & Notifications</h2>
+            <h2 className="text-xl font-bold text-gray-900">Umpan Balik & Notifikasi Sekolah</h2>
           </div>
 
           {/* SCHOOL FEEDBACK CARD */}
@@ -462,7 +462,7 @@ const DashboardSPPG = () => {
               })}
 
               <div className="bg-gray-50 rounded-xl border border-gray-200 shadow-sm p-5 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-all">
-                <p className="text-base font-bold text-gray-900">View History →</p>
+                <p className="text-base font-bold text-gray-900">Lihat Riwayat →</p>
               </div>
             </div>
           </div>
