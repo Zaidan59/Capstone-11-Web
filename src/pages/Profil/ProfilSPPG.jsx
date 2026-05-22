@@ -150,6 +150,7 @@ export default function ProfilSPPG() {
         const data = res?.data?.data ?? {};
         const schools = Array.isArray(data?.schools) ? data.schools : [];
         const mappedSchools = schools.map((school) => ({
+          id: school?.id ?? null,
           name: school?.schoolName ?? school?.name ?? "-",
           location: school?.address ?? "-",
           studentCount: school?.studentCount ?? "-",
@@ -388,14 +389,14 @@ export default function ProfilSPPG() {
             onPointerLeave={stopMenuDrag}
             onClickCapture={handleMenuClickCapture}
             className={`flex gap-5 overflow-x-auto pb-4 pr-1 select-none [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden ${
-              isMenuDragging ? 'cursor-grabbing snap-none' : 'cursor-grab snap-x snap-proximity'
+              isMenuDragging ? 'cursor-grabbing' : 'cursor-grab'
             }`}
             style={{ touchAction: 'pan-y' }}
           >
             {sppgData.weeklyMenu.map((menu, idx) => (
               <div
                 key={idx}
-                className="relative flex w-[250px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm snap-start"
+                className="relative flex w-[250px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
               >
                 <ImageBox
                   src={menu.image}
@@ -511,7 +512,12 @@ export default function ProfilSPPG() {
                       {getDisplayValue(school.studentCount)} Students
                     </p>
                   </div>
-                  <button className="text-sm font-bold text-[#136dec] flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => school?.id && navigate(`/profil/sekolah/${school.id}`)}
+                    disabled={!school?.id}
+                    className="text-sm font-bold text-[#136dec] flex items-center gap-1 disabled:text-slate-400 disabled:cursor-not-allowed"
+                  >
                     Profile
                     <span>→</span>
                   </button>
