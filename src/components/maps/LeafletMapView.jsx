@@ -65,6 +65,10 @@ function getPosition(item) {
   return [item.lat, item.lng];
 }
 
+function getConnectionKey(sppgId, schoolId) {
+  return `${sppgId}__${schoolId}`;
+}
+
 function MapController({ selectedItem }) {
   const map = useMap();
 
@@ -366,30 +370,52 @@ export default function LeafletMapView({
     return validSchoolItems;
   }, [filter, showFilter, validSchoolItems, validSppgItems]);
 
-  const routeLines = useMemo(() => {
-    if (!selectedItem) return [];
+  const routeConnections = useMemo(() => {
+    const connections = new Map();
+    const sppgById = new Map(validSppgItems.map((item) => [String(item.id), item]));
+    const schoolById = new Map(validSchoolItems.map((item) => [String(item.id), item]));
 
-    if (selectedItem.type === "sppg") {
-      const linkedSchools =
-        Array.isArray(selectedItem.schools) && selectedItem.schools.length > 0
-          ? selectedItem.schools
-              .map((schoolId) =>
-                validSchoolItems.find((school) => school.id === schoolId),
-              )
-              .filter(Boolean)
-          : validSchoolItems.filter((school) => school.sppgId === selectedItem.id);
+    const addConnection = (sppgItem, schoolItem) => {
+      if (!sppgItem || !schoolItem) return;
+      const key = getConnectionKey(sppgItem.id, schoolItem.id);
 
-      return linkedSchools.map((school) => [
-        getPosition(selectedItem),
-        getPosition(school),
-      ]);
-    }
+      connections.set(key, {
+        key,
+        sppgId: String(sppgItem.id),
+        schoolId: String(schoolItem.id),
+        positions: [getPosition(sppgItem), getPosition(schoolItem)],
+      });
+    };
 
-    const sppg = validSppgItems.find((item) => item.id === selectedItem.sppgId);
-    return sppg && hasValidLatLng(selectedItem)
-      ? [[getPosition(sppg), getPosition(selectedItem)]]
-      : [];
-  }, [selectedItem, validSchoolItems, validSppgItems]);
+    validSchoolItems.forEach((school) => {
+      if (!school.sppgId) return;
+      addConnection(sppgById.get(String(school.sppgId)), school);
+    });
+
+    validSppgItems.forEach((sppgItem) => {
+      if (!Array.isArray(sppgItem.schools)) return;
+
+      sppgItem.schools.forEach((schoolId) => {
+        addConnection(sppgItem, schoolById.get(String(schoolId)));
+      });
+    });
+
+    return Array.from(connections.values());
+  }, [validSchoolItems, validSppgItems]);
+
+  const selectedConnectionKeys = useMemo(() => {
+    if (!selectedItem) return new Set();
+
+    return new Set(
+      routeConnections
+        .filter((connection) =>
+          selectedItem.type === "sppg"
+            ? connection.sppgId === String(selectedItem.id)
+            : connection.schoolId === String(selectedItem.id),
+        )
+        .map((connection) => connection.key),
+    );
+  }, [routeConnections, selectedItem]);
 
   const handleSelect = (type, id) => {
     setSelected({ type, id });
@@ -415,17 +441,24 @@ export default function LeafletMapView({
           onPointChange={setPopupPoint}
         />
 
-        {routeLines.map((positions, index) => (
+        {routeConnections.map((connection) => {
+          const isHighlighted = selectedConnectionKeys.has(connection.key);
+
+          return (
           <Polyline
-            key={index}
-            positions={positions}
+            key={connection.key}
+            positions={connection.positions}
             pathOptions={{
-              color: "#136DEC",
-              weight: 4,
-              opacity: 0.85,
+              color: isHighlighted ? "#0057D9" : "#136DEC",
+              weight: isHighlighted ? 5 : 3,
+              opacity: isHighlighted ? 0.95 : 0.68,
+              dashArray: isHighlighted ? null : "8 8",
+              lineCap: "round",
+              lineJoin: "round",
             }}
           />
-        ))}
+          );
+        })}
 
         <MarkerLayer
           items={visibleItems}
