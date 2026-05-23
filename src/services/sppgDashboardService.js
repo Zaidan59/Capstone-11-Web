@@ -34,3 +34,5 @@ export const createSppgMealDocumentation = async ({
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
+
+export const getSppgMealDocumentation = () => api.get('/sppg/meals/documentation')
