@@ -17,7 +17,7 @@ import IconProfile from "../../assets/icon_profile.png";
 import { useAuth } from '../../hooks/useAuth';
 import { getSPPGById, updateMyProfile } from '../../services/sppgService';
 import { getNotificationsBySppgId } from '../../services/notificationService';
-import { createSppgMealDocumentation, uploadNutritionCsv, uploadWeeklyMenuCsv } from '../../services/sppgDashboardService';
+import { createSppgMealDocumentation, getSppgMealDocumentation, uploadNutritionCsv, uploadWeeklyMenuCsv } from '../../services/sppgDashboardService';
 import { uploadProfileImage } from '../../services/mediaService';
 import { getDisplayValue } from '../../utils/display';
 import { resolveImageUrl } from '../../utils/imageUrl';
@@ -164,6 +164,7 @@ const DashboardSPPG = () => {
   const [mealNotes, setMealNotes] = useState('');
   const [menuData, setMenuData] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [documentationItems, setDocumentationItems] = useState([]);
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
   const [showEditAccountModal, setShowEditAccountModal] = useState(false);
   const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
@@ -202,22 +203,27 @@ const DashboardSPPG = () => {
       .then(() => {
         setLoading(true);
         setError('');
-        return Promise.all([getSPPGById(sppgId), getNotificationsBySppgId(sppgId)]);
+        return Promise.all([getSPPGById(sppgId), getNotificationsBySppgId(sppgId), getSppgMealDocumentation()]);
       })
-      .then(([sppgRes, notificationRes]) => {
+      .then(([sppgRes, notificationRes, documentationRes]) => {
         const data = sppgRes?.data?.data ?? null;
         const notifData = Array.isArray(notificationRes?.data?.data)
           ? notificationRes.data.data
           : [];
+        const docs = Array.isArray(documentationRes?.data?.data)
+          ? documentationRes.data.data
+          : [];
         setSppgData(data);
         setServedSchools(Array.isArray(data?.schools) ? data.schools : []);
         setNotifications(notifData);
+        setDocumentationItems(docs);
         setMenuData([]);
       })
       .catch(() => {
         setSppgData(null);
         setServedSchools([]);
         setNotifications([]);
+        setDocumentationItems([]);
         setMenuData([]);
         setError('Gagal memuat data SPPG.');
       })
@@ -235,11 +241,19 @@ const DashboardSPPG = () => {
   const displayName = sppgData?.name || user?.name || user?.identifier || 'Admin SPPG';
   const schoolCount = servedSchools.length > 0 ? servedSchools.length : '-';
   const uploadPreviewItems =
-    servedSchools.length > 0
-      ? servedSchools.slice(0, 4).map((school) => ({
-          school: getDisplayValue(school?.schoolName ?? school?.name),
-          time: '-',
-          img: resolveImageUrl(getImageSource(school)),
+    documentationItems.length > 0
+      ? documentationItems.slice(0, 4).map((item) => ({
+          school: getDisplayValue(item?.schoolName),
+          time: item?.createdAt
+            ? new Date(item.createdAt).toLocaleString('id-ID', {
+                day: '2-digit',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '-',
+          img: resolveImageUrl(item?.photoUrl),
+          note: getDisplayValue(item?.notes),
         }))
       : [];
   const feedbackItems =
@@ -379,6 +393,9 @@ const DashboardSPPG = () => {
         productionDate: mealProductionDate || new Date().toISOString().slice(0, 10),
         targetSchoolIds: [mealTargetSchoolId],
       });
+      const docsRes = await getSppgMealDocumentation();
+      const docs = Array.isArray(docsRes?.data?.data) ? docsRes.data.data : [];
+      setDocumentationItems(docs);
       setActionMessage('Dokumentasi makanan berhasil dikirim.');
       setMealPhotoFile(null);
       setMealProductionDate('');
@@ -927,6 +944,7 @@ const DashboardSPPG = () => {
                       </div>
                       <div className="p-3">
                         <p className="text-sm font-semibold text-blue-500">{getDisplayValue(item.school)}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-slate-500">{getDisplayValue(item.note)}</p>
                         <p className="text-xs text-gray-400">{getDisplayValue(item.time)}</p>
                       </div>
                     </div>
