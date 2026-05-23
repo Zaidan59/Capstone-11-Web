@@ -18,11 +18,6 @@ import {
   getSekolahSppg,
 } from '../../services/sekolahService';
 
-const STORAGE_KEY_DOCS = 'simba_dokumentasi';
-const STORAGE_KEY_NOTES = 'simba_catatan';
-const PROFILE_CACHE_TTL_MS = 60 * 1000;
-const PROFILE_CACHE_KEY_PREFIX = 'simba_profile_sekolah_';
-
 const DEFAULT_SEKOLAH = {
   nama: '-',
   foto: null,
@@ -44,11 +39,6 @@ const DEFAULT_MENU_HARIAN = [
     isToday: false,
     menu: ['-'],
   },
-  {
-    hari: 'Selasa, 26 Mei',
-    isToday: false,
-    menu: ['Nasi Merah', 'Ikan Bakar Bumbu Kuning', 'Tumis Buncis Wortel', 'Buah Pepaya'],
-  },
 ];
 
 const DEFAULT_DOKUMENTASI = [{ foto: null, fotoUrl: null, caption: '-' }];
@@ -61,43 +51,6 @@ const DEFAULT_NUTRISI = [
 ];
 
 const DEFAULT_CATATAN = [];
-
-const getProfileCacheKey = (id) => `${PROFILE_CACHE_KEY_PREFIX}${id}`;
-
-function readProfileCache(id) {
-  if (!id) return null;
-  try {
-    const raw = sessionStorage.getItem(getProfileCacheKey(id));
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw);
-    if (!parsed?.timestamp || !parsed?.data) return null;
-
-    if (Date.now() - parsed.timestamp > PROFILE_CACHE_TTL_MS) {
-      sessionStorage.removeItem(getProfileCacheKey(id));
-      return null;
-    }
-
-    return parsed.data;
-  } catch {
-    return null;
-  }
-}
-
-function writeProfileCache(id, data) {
-  if (!id) return;
-  try {
-    sessionStorage.setItem(
-      getProfileCacheKey(id),
-      JSON.stringify({
-        timestamp: Date.now(),
-        data,
-      }),
-    );
-  } catch {
-    // ignore cache write error
-  }
-}
 
 function getImageSource(raw) {
   return (
@@ -172,39 +125,7 @@ export default function ProfilSekolah() {
 
     let cancelled = false;
 
-    const buildDokumentasiFromSource = (baseDokum) => {
-      const savedDocs = localStorage.getItem(STORAGE_KEY_DOCS);
-      if (savedDocs) {
-        const parsed = JSON.parse(savedDocs);
-        return parsed.slice(0, 3);
-      }
-      return baseDokum;
-    };
-
-    const buildCatatanFromSource = (baseCatatan) => {
-      const savedNotes = localStorage.getItem(STORAGE_KEY_NOTES);
-      if (savedNotes) {
-        const parsed = JSON.parse(savedNotes);
-        return [...parsed, ...baseCatatan];
-      }
-      return baseCatatan;
-    };
-
-    const hydrateFromCache = () => {
-      const cached = readProfileCache(idSekolah);
-      if (!cached) return;
-
-      setSekolah(cached.sekolah ?? DEFAULT_SEKOLAH);
-      setSppg(cached.sppg ?? DEFAULT_SPPG);
-      setMenuHarian(cached.menuHarian ?? DEFAULT_MENU_HARIAN);
-      setNutrisi(cached.nutrisi ?? DEFAULT_NUTRISI);
-      setDokumentasi(buildDokumentasiFromSource(cached.dokumentasi ?? DEFAULT_DOKUMENTASI));
-      setCatatan(buildCatatanFromSource(cached.catatan ?? DEFAULT_CATATAN));
-      setLoading(false);
-    };
-
     const fetchProfile = async () => {
-      hydrateFromCache();
       setLoading(true);
 
       try {
@@ -245,31 +166,19 @@ export default function ProfilSekolah() {
             ? resCatatan.value?.data?.data ?? resCatatan.value?.data ?? DEFAULT_CATATAN
             : DEFAULT_CATATAN;
 
-        const dokumentasiData = buildDokumentasiFromSource(baseDokum);
-        const catatanData = buildCatatanFromSource(baseCatatan);
-
         setSppg(sppgData);
         setMenuHarian(menuData);
         setNutrisi(nutrisiData);
-        setDokumentasi(dokumentasiData);
-        setCatatan(catatanData);
-
-        writeProfileCache(idSekolah, {
-          sekolah: sekolahData,
-          sppg: sppgData,
-          menuHarian: menuData,
-          dokumentasi: baseDokum,
-          nutrisi: nutrisiData,
-          catatan: baseCatatan,
-        });
+        setDokumentasi(baseDokum);
+        setCatatan(baseCatatan);
       } catch {
         if (cancelled) return;
         setSekolah(DEFAULT_SEKOLAH);
         setSppg(DEFAULT_SPPG);
         setMenuHarian(DEFAULT_MENU_HARIAN);
         setNutrisi(DEFAULT_NUTRISI);
-        setDokumentasi(buildDokumentasiFromSource(DEFAULT_DOKUMENTASI));
-        setCatatan(buildCatatanFromSource(DEFAULT_CATATAN));
+        setDokumentasi(DEFAULT_DOKUMENTASI);
+        setCatatan(DEFAULT_CATATAN);
       } finally {
         if (!cancelled) {
           setLoading(false);

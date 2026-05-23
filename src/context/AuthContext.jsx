@@ -36,8 +36,16 @@ export const AuthProvider = ({ children }) => {
     clearStoredToken()
   }
 
+  const updateUser = (nextUser) => {
+    setUser((prev) => {
+      const merged = { ...(prev ?? {}), ...(nextUser ?? {}) }
+      localStorage.setItem(USER_KEY, JSON.stringify(merged))
+      return merged
+    })
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated: Boolean(user), login, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated: Boolean(user), login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

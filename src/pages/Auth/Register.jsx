@@ -1,14 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import RegistImage from "../../assets/Regist_image.png";
 import { register } from "../../services/authService";
-
-const sppgOptions = [
-  "SPPG Srengseng",
-  "SPPG Tebet Kebon Baru",
-  "SPPG Kebayoran Baru",
-  "SPPG Bambu Apus",
-];
+import { getAllSPPG } from "../../services/sppgService";
 
 const emptyForm = {
   nama: "",
@@ -32,6 +26,38 @@ export default function Register() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [touched, setTouched] = useState({});
   const [form, setForm] = useState(emptyForm);
+  const [sppgOptions, setSppgOptions] = useState([]);
+  const [sppgLoading, setSppgLoading] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    setSppgLoading(true);
+
+    getAllSPPG({ forceRefresh: true })
+      .then((res) => {
+        if (!mounted) return;
+        const items = Array.isArray(res?.data?.data)
+          ? res.data.data
+          : Array.isArray(res?.data)
+          ? res.data
+          : [];
+        const options = items
+          .map((item) => item?.name ?? item?.sppgName ?? "")
+          .filter((name) => typeof name === "string" && name.trim().length > 0);
+        setSppgOptions(Array.from(new Set(options)));
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setSppgOptions([]);
+      })
+      .finally(() => {
+        if (mounted) setSppgLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const validateField = (field, value, snapshot = form, activeRole = role) => {
     const draft = { ...snapshot, [field]: value };
@@ -49,9 +75,9 @@ export default function Register() {
     }
 
     if (field === "nomor") {
-      const nomor = draft.nomor.replace(/\D/g, "");
-      if (!nomor) return "Nomor kontak wajib diisi.";
-      if (nomor.length < 9 || nomor.length > 13) return "Nomor kontak harus 9-13 digit.";
+      const picName = draft.nomor.trim();
+      if (!picName) return "Nama penanggung jawab wajib diisi.";
+      if (picName.length < 3) return "Nama penanggung jawab minimal 3 karakter.";
       return "";
     }
 
@@ -189,13 +215,19 @@ export default function Register() {
         role,
         name: form.nama.trim(),
         email: form.email.trim().toLowerCase(),
-        phone: form.nomor.replace(/\D/g, ""),
+        // Untuk opsi cepat, field ini dipakai sebagai person_in_charge di backend.
+        phone: form.nomor.trim(),
         code: form.kode.trim(),
         address: form.alamat.trim(),
         sppg: role === "sekolah" ? form.sppg.trim() : null,
         password: form.password,
       });
-      navigate("/login");
+      navigate("/login", {
+        state: {
+          notice:
+            "Pendaftaran berhasil. Akun Anda sedang menunggu verifikasi admin sebelum dapat mengakses dashboard.",
+        },
+      });
     } catch (err) {
       setError(err?.response?.data?.message ?? "Pendaftaran gagal. Silakan coba lagi.");
     } finally {
@@ -237,8 +269,14 @@ export default function Register() {
           </div>
         </div>
 
-        <div className="w-full md:w-7/12 flex flex-col px-8 py-8 overflow-y-auto max-h-screen">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Pilih Peran Institusi</p>
+        <div className="w-full md:w-7/12 flex flex-col px-8 py-8 overflow-y-auto max-h-screen bg-gradient-to-b from-white to-slate-50/70">
+          <div className="mb-5 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pilih Peran Institusi</p>
+            <h1 className="text-lg font-extrabold text-slate-900 leading-tight">Form Pendaftaran SIMBA</h1>
+            <p className="mt-1 text-xs text-slate-500">
+              Lengkapi data institusi untuk pengajuan akun. Aktivasi dilakukan setelah verifikasi admin.
+            </p>
+          </div>
 
           <div className="flex rounded-lg border border-slate-200 p-1 mb-5 gap-1">
             <button
@@ -272,35 +310,67 @@ export default function Register() {
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label className="text-xs font-semibold text-slate-600 mb-1 block">{role === "sppg" ? "Nama SPPG" : "Nama Sekolah"}</label>
-              <input type="text" value={form.nama} onChange={handleChange("nama")} onBlur={handleBlur("nama")} className={inputClass("nama")} />
+              <input
+                type="text"
+                value={form.nama}
+                onChange={handleChange("nama")}
+                onBlur={handleBlur("nama")}
+                placeholder={role === "sppg" ? "Contoh: SPPG Kebayoran Baru" : "Contoh: SDN 01 Kebayoran"}
+                className={inputClass("nama")}
+              />
               {fieldErrors.nama ? <p className="text-xs text-red-500 mt-1">{fieldErrors.nama}</p> : null}
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-600 mb-1 block">{role === "sppg" ? "Email Institusi" : "Email Sekolah"}</label>
-              <input type="email" value={form.email} onChange={handleChange("email")} onBlur={handleBlur("email")} className={inputClass("email")} />
+              <input
+                type="email"
+                value={form.email}
+                onChange={handleChange("email")}
+                onBlur={handleBlur("email")}
+                placeholder="nama@institusi.id"
+                className={inputClass("email")}
+              />
               {fieldErrors.email ? <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p> : null}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">Nomor Kontak</label>
-              <div className={`flex items-center rounded-lg overflow-hidden ${fieldErrors.nomor ? "border border-red-400 bg-red-50" : "border border-slate-200 bg-slate-50"}`}>
-                <span className="px-3 text-sm text-slate-500 border-r border-slate-200">+62</span>
-                <input type="text" value={form.nomor} onChange={handleChange("nomor")} onBlur={handleBlur("nomor")} className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" />
-              </div>
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">Nama Penanggung Jawab</label>
+              <input
+                type="text"
+                value={form.nomor}
+                onChange={handleChange("nomor")}
+                onBlur={handleBlur("nomor")}
+                placeholder="Contoh: Budi Santoso"
+                className={inputClass("nomor")}
+              />
               {fieldErrors.nomor ? <p className="text-xs text-red-500 mt-1">{fieldErrors.nomor}</p> : null}
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-600 mb-1 block">{role === "sppg" ? "Kode SPPG" : "NPSN Sekolah"}</label>
-              <input type="text" value={form.kode} onChange={handleChange("kode")} onBlur={handleBlur("kode")} className={inputClass("kode")} />
+              <input
+                type="text"
+                value={form.kode}
+                onChange={handleChange("kode")}
+                onBlur={handleBlur("kode")}
+                placeholder={role === "sppg" ? "Contoh: SPPG-JKT-01" : "8 digit NPSN"}
+                className={inputClass("kode")}
+              />
               {fieldErrors.kode ? <p className="text-xs text-red-500 mt-1">{fieldErrors.kode}</p> : null}
             </div>
           </div>
 
           <div className="mb-3">
             <label className="text-xs font-semibold text-slate-600 mb-1 block">{role === "sppg" ? "Alamat Dapur" : "Alamat Sekolah"}</label>
-            <textarea value={form.alamat} onChange={handleChange("alamat")} onBlur={handleBlur("alamat")} rows={2} className={`${inputClass("alamat")} resize-none`} />
+            <textarea
+              value={form.alamat}
+              onChange={handleChange("alamat")}
+              onBlur={handleBlur("alamat")}
+              placeholder="Masukkan alamat lengkap institusi"
+              rows={2}
+              className={`${inputClass("alamat")} resize-none`}
+            />
             {fieldErrors.alamat ? <p className="text-xs text-red-500 mt-1">{fieldErrors.alamat}</p> : null}
           </div>
 
@@ -311,18 +381,22 @@ export default function Register() {
                 value={form.sppg}
                 onChange={handleChange("sppg")}
                 onBlur={handleBlur("sppg")}
-                disabled={role === "sppg"}
+                disabled={role === "sppg" || sppgLoading}
                 className={`w-full rounded-lg px-3 py-2.5 text-sm outline-none appearance-none ${
                   fieldErrors.sppg ? "border border-red-400 bg-red-50" : "border border-slate-200 bg-slate-50"
                 } ${role === "sppg" ? "opacity-50 cursor-not-allowed" : ""}`}
               >
-                <option value="">Pilih SPPG</option>
+                <option value="">{sppgLoading ? "Memuat data SPPG..." : "Pilih SPPG"}</option>
                 {sppgOptions.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">v</span>
             </div>
+            {role === "sekolah" ? <p className="text-[11px] text-slate-400 mt-1">Pilih unit dapur yang menjadi mitra distribusi sekolah Anda.</p> : null}
+            {role === "sekolah" && !sppgLoading && sppgOptions.length === 0 ? (
+              <p className="text-[11px] text-amber-600 mt-1">Data SPPG belum tersedia.</p>
+            ) : null}
             {fieldErrors.sppg ? <p className="text-xs text-red-500 mt-1">{fieldErrors.sppg}</p> : null}
           </div>
 

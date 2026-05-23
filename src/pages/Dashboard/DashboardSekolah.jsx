@@ -21,10 +21,6 @@ import { useAuth } from "../../hooks/useAuth";
 import { getDisplayValue } from "../../utils/display";
 import { resolveImageUrl } from "../../utils/imageUrl";
 
-const STORAGE_KEY_DOCS = "simba_dokumentasi_fallback";
-const STORAGE_KEY_NOTES = "simba_catatan_fallback";
-const MAX_DOCS = 20;
-
 const DEFAULT_DOCS = Array.from({ length: 3 }, () => ({
   foto: null,
   fotoUrl: null,
@@ -114,15 +110,7 @@ export default function DashboardSekolah() {
   const [showStorageError, setShowStorageError] = useState(false);
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
   const [catatan, setCatatan] = useState("");
-  const [recentDocs, setRecentDocs] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_DOCS);
-      if (saved) return JSON.parse(saved).slice(0, 3);
-    } catch {
-      // ignore
-    }
-    return DEFAULT_DOCS;
-  });
+  const [recentDocs, setRecentDocs] = useState(DEFAULT_DOCS);
 
   const fileInputRef = useRef(null);
 
@@ -241,31 +229,12 @@ export default function DashboardSekolah() {
           ...prev,
         ].slice(0, 3),
       );
-      localStorage.removeItem(STORAGE_KEY_DOCS);
       await loadSekolahDashboard(resolvedSekolahId);
       setShowUploadSuccess(true);
       setTimeout(() => setShowUploadSuccess(false), 2500);
     } catch {
-      const fallbackDoc = {
-        foto: null,
-        fotoUrl: uploadedFileUrl,
-        caption: keterangan || uploadedFile.name,
-        time: getNowLabel(),
-      };
-
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY_DOCS);
-        const existing = saved ? JSON.parse(saved) : DEFAULT_DOCS;
-        const updated = [fallbackDoc, ...existing].slice(0, MAX_DOCS);
-        localStorage.setItem(STORAGE_KEY_DOCS, JSON.stringify(updated));
-        setRecentDocs(updated.slice(0, 3));
-
-        setShowUploadSuccess(true);
-        setTimeout(() => setShowUploadSuccess(false), 2500);
-      } catch {
-        setShowStorageError(true);
-        setTimeout(() => setShowStorageError(false), 3000);
-      }
+      setShowStorageError(true);
+      setTimeout(() => setShowStorageError(false), 3000);
     } finally {
       setIsUploading(false);
       if (uploadedFileUrl) URL.revokeObjectURL(uploadedFileUrl);
@@ -292,26 +261,24 @@ export default function DashboardSekolah() {
       kutipan: null,
     };
 
+    let isSuccess = false;
     try {
       await createSekolahCatatan(resolvedSekolahId, {
         title: notePayload.judul,
         message: notePayload.meta,
         type: notePayload.type,
       });
-      localStorage.removeItem(STORAGE_KEY_NOTES);
+      isSuccess = true;
     } catch {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY_NOTES);
-        const existing = saved ? JSON.parse(saved) : [];
-        localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify([notePayload, ...existing]));
-      } catch {
-        // ignore
-      }
+      setShowStorageError(true);
+      setTimeout(() => setShowStorageError(false), 3000);
     } finally {
       setIsSubmittingNote(false);
-      setShowUnggahSuccess(true);
-      setTimeout(() => setShowUnggahSuccess(false), 2500);
-      setCatatan("");
+      if (isSuccess) {
+        setShowUnggahSuccess(true);
+        setTimeout(() => setShowUnggahSuccess(false), 2500);
+        setCatatan("");
+      }
     }
   };
 
