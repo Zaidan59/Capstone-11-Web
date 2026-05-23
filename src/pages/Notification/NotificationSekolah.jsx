@@ -187,7 +187,7 @@ function RightSidebar({ sekolah, totalNotifications, reviewedNotifications }) {
 }
 
 export default function NotificationSekolah() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const sekolahId = user?.sekolahId || user?.id || null;
   const profileId = sekolahId;
@@ -196,8 +196,13 @@ export default function NotificationSekolah() {
   const sekolah = normalizeSekolahData(user?.school ?? user?.sekolah ?? null);
   const [loading, setLoading] = useState(hasSekolahId);
   const [error, setError] = useState(hasSekolahId ? '' : 'ID sekolah belum tersedia.');
+  const [showProfileOverlay, setShowProfileOverlay] = useState(false);
 
   const displayName = user?.name || user?.identifier || "Pengguna Sekolah";
+  const profileAvatar = resolveImageUrl(
+    sekolah?.foto || user?.profilePhotoUrl || user?.avatarUrl || user?.imageUrl || user?.photoUrl,
+    iconProfile,
+  );
 
   useEffect(() => {
     if (!sekolahId) {
@@ -284,19 +289,51 @@ export default function NotificationSekolah() {
             <span className="font-bold text-[20px] text-[#1a2233] tracking-wide">SIMBA</span>
           </button>
           <div className="flex items-center gap-[18px]">
-            <button onClick={() => navigate("/notification/sekolah")} className="relative">
+            <button
+              onClick={() => navigate("/notification/sekolah")}
+              className="relative"
+              aria-label="Buka Notifikasi"
+            >
               <IconBell hasUnread={hasUnread} />
             </button>
             <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
-            <button
-              type="button"
-              onClick={() => profileId && navigate(`/profil/sekolah/${profileId}`)}
-              className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Buka Profil Sekolah"
-              disabled={!profileId}
-            >
-              <img src={iconProfile} alt="" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowProfileOverlay((prev) => !prev)}
+                className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer overflow-hidden"
+                aria-label="Buka Menu Profil"
+              >
+                <img src={profileAvatar} alt="Foto profil" className="w-full h-full object-cover" />
+              </button>
+              {showProfileOverlay ? (
+                <div className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileOverlay(false);
+                      if (profileId) {
+                        navigate(`/profil/sekolah/${profileId}`);
+                      }
+                    }}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Edit Profil
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileOverlay(false);
+                      logout();
+                      navigate('/login');
+                    }}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </nav>
