@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import L from "leaflet";
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
 import iconSekolah from "../../assets/Icon_sekolah.png";
 import iconMap from "../../assets/Icon_map.png";
@@ -9,7 +11,7 @@ import iconUnggah from "../../assets/IconUnggah.png";
 import iconCatatan from "../../assets/iconCatatan.png";
 import iconUnggahanTerbaru from "../../assets/IconUnggahanTerbaru.png";
 import iconProfile from "../../assets/icon_profile.png";
-import { uploadImage } from "../../services/mediaService";
+import { uploadImage, uploadProfileImage } from "../../services/mediaService";
 import {
   createSekolahCatatan,
   createSekolahDokumentasi,
@@ -17,13 +19,10 @@ import {
   getSekolahById,
   getSekolahDokumentasi,
 } from "../../services/sekolahService";
+import { updateMyProfile } from "../../services/sppgService";
 import { useAuth } from "../../hooks/useAuth";
 import { getDisplayValue } from "../../utils/display";
 import { resolveImageUrl } from "../../utils/imageUrl";
-
-const STORAGE_KEY_DOCS = "simba_dokumentasi_fallback";
-const STORAGE_KEY_NOTES = "simba_catatan_fallback";
-const MAX_DOCS = 20;
 
 const DEFAULT_DOCS = Array.from({ length: 3 }, () => ({
   foto: null,
@@ -76,6 +75,67 @@ function getNowLabel() {
   return `${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB - Hari ini`;
 }
 
+const locationPinIcon = L.divIcon({
+  className: "",
+  html: '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:9999px;background:#136DEC;border:3px solid #fff;box-shadow:0 4px 10px rgba(19,109,236,.35)"></span>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+function LocationPickerMap({ value, onChange, children }) {
+  const lat = Number(value?.lat);
+  const lng = Number(value?.lng);
+  const center = Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : [-6.2, 106.816666];
+
+  const ClickHandler = () => {
+    useMapEvents({
+      click: (event) => {
+        onChange({ lat: event.latlng.lat, lng: event.latlng.lng });
+      },
+    });
+    return null;
+  };
+
+  return (
+    <MapContainer center={center} zoom={12} className="h-64 w-full rounded-xl">
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <ClickHandler />
+      <Marker
+        position={center}
+        icon={locationPinIcon}
+        draggable={true}
+        eventHandlers={{
+          dragend: (event) => {
+            const marker = event.target;
+            const next = marker.getLatLng();
+            onChange({ lat: next.lat, lng: next.lng });
+          },
+        }}
+      />
+      {children}
+    </MapContainer>
+  );
+}
+
+function MapSearchController({ target }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!target) return;
+
+    const lat = Number(target.lat);
+    const lng = Number(target.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    map.flyTo([lat, lng], 15, { duration: 0.7 });
+  }, [map, target]);
+
+  return null;
+}
+
 function normalizeSekolahData(raw) {
   if (!raw) return null;
   return {
@@ -89,6 +149,9 @@ function normalizeSekolahData(raw) {
     menuSide: raw?.menuSide ?? raw?.sideDish ?? raw?.menu?.sideDish ?? "-",
     menuCalories: raw?.menuCalories ?? raw?.calories ?? raw?.menu?.calories ?? "-",
     menuProtein: raw?.menuProtein ?? raw?.protein ?? raw?.menu?.protein ?? "-",
+    studentCount: raw?.studentCount ?? raw?.studentsCount ?? raw?.jumlahSiswa ?? null,
+    lat: raw?.lat ?? raw?.latitude ?? null,
+    lng: raw?.lng ?? raw?.longitude ?? null,
   };
 }
 
@@ -99,7 +162,7 @@ function getLatestDocumentationImage(items) {
 }
 
 export default function DashboardSekolah() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const resolvedSekolahId = user?.sekolahId || user?.schoolId || null;
 
@@ -113,16 +176,22 @@ export default function DashboardSekolah() {
   const [showUnggahSuccess, setShowUnggahSuccess] = useState(false);
   const [showStorageError, setShowStorageError] = useState(false);
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [catatan, setCatatan] = useState("");
-  const [recentDocs, setRecentDocs] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_DOCS);
-      if (saved) return JSON.parse(saved).slice(0, 3);
-    } catch {
-      // ignore
-    }
-    return DEFAULT_DOCS;
-  });
+  const [recentDocs, setRecentDocs] = useState(DEFAULT_DOCS);
+  const [studentCountInput, setStudentCountInput] = useState("");
+  const [onboardingPhotoPreview, setOnboardingPhotoPreview] = useState("");
+  const [onboardingPhotoFile, setOnboardingPhotoFile] = useState(null);
+  const [onboardingLat, setOnboardingLat] = useState("");
+  const [onboardingLng, setOnboardingLng] = useState("");
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [locationQuery, setLocationQuery] = useState("");
+  const [locationSearching, setLocationSearching] = useState(false);
+  const [locationSearchError, setLocationSearchError] = useState("");
+  const [mapTarget, setMapTarget] = useState(null);
+  const [isSavingOnboarding, setIsSavingOnboarding] = useState(false);
+  const [onboardingError, setOnboardingError] = useState("");
+  const [hasAutoOpenedOnboarding, setHasAutoOpenedOnboarding] = useState(false);
 
   const fileInputRef = useRef(null);
 
@@ -196,6 +265,177 @@ export default function DashboardSekolah() {
     Promise.resolve().then(() => loadSekolahDashboard(resolvedSekolahId));
   }, [resolvedSekolahId, user?.id]);
 
+  const isSchoolProfileIncomplete = useMemo(() => {
+    if (!sekolah) return false;
+
+    const studentCount = Number(sekolah?.studentCount ?? 0);
+    const hasPhoto = Boolean(sekolah?.foto);
+
+    return !hasPhoto || !Number.isFinite(studentCount) || studentCount <= 0;
+  }, [sekolah]);
+
+  const revokePreviewUrl = (previewUrl) => {
+    if (previewUrl && previewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+  };
+
+  const handleOpenOnboarding = () => {
+    setOnboardingError("");
+    setOnboardingPhotoFile(null);
+    revokePreviewUrl(onboardingPhotoPreview);
+    setOnboardingPhotoPreview(sekolah?.foto || "");
+    setStudentCountInput(String(sekolah?.studentCount ?? ""));
+    setOnboardingLat(String(sekolah?.lat ?? ""));
+    setOnboardingLng(String(sekolah?.lng ?? ""));
+    setShowLocationPicker(false);
+    setLocationQuery("");
+    setLocationSearching(false);
+    setLocationSearchError("");
+    setMapTarget(null);
+    setShowOnboardingModal(true);
+  };
+
+  const handleCloseOnboarding = () => {
+    setShowOnboardingModal(false);
+    setOnboardingError("");
+    setOnboardingPhotoFile(null);
+    revokePreviewUrl(onboardingPhotoPreview);
+    setOnboardingPhotoPreview("");
+    setStudentCountInput("");
+    setOnboardingLat("");
+    setOnboardingLng("");
+    setShowLocationPicker(false);
+    setLocationQuery("");
+    setLocationSearching(false);
+    setLocationSearchError("");
+    setMapTarget(null);
+  };
+
+  const handleOnboardingPhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    revokePreviewUrl(onboardingPhotoPreview);
+    setOnboardingPhotoFile(file);
+    setOnboardingPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleMapLocationChange = ({ lat, lng }) => {
+    setOnboardingLat(String(Number(lat).toFixed(6)));
+    setOnboardingLng(String(Number(lng).toFixed(6)));
+  };
+
+  const handleSearchLocation = async () => {
+    const q = locationQuery.trim();
+    if (!q) return;
+
+    setLocationSearching(true);
+    setLocationSearchError("");
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+      const data = await res.json();
+      const first = Array.isArray(data) ? data[0] : null;
+
+      if (!first) {
+        setLocationSearchError("Lokasi tidak ditemukan. Coba kata kunci lain.");
+        return;
+      }
+
+      const lat = Number(first.lat);
+      const lng = Number(first.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        setLocationSearchError("Koordinat lokasi tidak valid.");
+        return;
+      }
+
+      handleMapLocationChange({ lat, lng });
+      setMapTarget({ lat, lng });
+    } catch {
+      setLocationSearchError("Gagal mencari lokasi. Coba lagi.");
+    } finally {
+      setLocationSearching(false);
+    }
+  };
+
+  const handleSaveOnboarding = async () => {
+    const parsedStudentCount = Number(studentCountInput);
+    const lat = Number(onboardingLat);
+    const lng = Number(onboardingLng);
+    const hasPhoto = Boolean(onboardingPhotoPreview || sekolah?.foto);
+
+    if (!hasPhoto) {
+      setOnboardingError("Silakan pilih foto profil terlebih dahulu.");
+      return;
+    }
+
+    if (!Number.isFinite(parsedStudentCount) || parsedStudentCount <= 0) {
+      setOnboardingError("Masukkan jumlah siswa yang valid.");
+      return;
+    }
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setOnboardingError("Masukkan latitude dan longitude yang valid.");
+      return;
+    }
+
+    setIsSavingOnboarding(true);
+    setOnboardingError("");
+
+    try {
+      let photoUrl = sekolah?.foto || "";
+
+      if (onboardingPhotoFile) {
+        const uploaded = await uploadProfileImage(onboardingPhotoFile, {
+          folder: "simba/profiles",
+        });
+
+        photoUrl = uploaded?.url || photoUrl;
+      }
+
+      await updateMyProfile({
+        photoUrl,
+        studentCount: parsedStudentCount,
+        lat: String(lat),
+        lng: String(lng),
+      });
+
+      await loadSekolahDashboard(resolvedSekolahId);
+      updateUser({
+        profilePhotoUrl: photoUrl,
+      });
+      setShowOnboardingModal(false);
+      setOnboardingPhotoFile(null);
+      revokePreviewUrl(onboardingPhotoPreview);
+      setOnboardingPhotoPreview("");
+      setStudentCountInput("");
+      setOnboardingLat("");
+      setOnboardingLng("");
+      setShowLocationPicker(false);
+      setLocationQuery("");
+      setLocationSearching(false);
+      setLocationSearchError("");
+      setMapTarget(null);
+    } catch (err) {
+      setOnboardingError(err?.response?.data?.message ?? "Gagal menyimpan profil sekolah.");
+    } finally {
+      setIsSavingOnboarding(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!sekolah || hasAutoOpenedOnboarding || !isSchoolProfileIncomplete) return;
+
+    handleOpenOnboarding();
+    setHasAutoOpenedOnboarding(true);
+  }, [sekolah, hasAutoOpenedOnboarding, isSchoolProfileIncomplete]);
+
   useEffect(() => {
     return () => {
       if (uploadedFileUrl) URL.revokeObjectURL(uploadedFileUrl);
@@ -241,31 +481,12 @@ export default function DashboardSekolah() {
           ...prev,
         ].slice(0, 3),
       );
-      localStorage.removeItem(STORAGE_KEY_DOCS);
       await loadSekolahDashboard(resolvedSekolahId);
       setShowUploadSuccess(true);
       setTimeout(() => setShowUploadSuccess(false), 2500);
     } catch {
-      const fallbackDoc = {
-        foto: null,
-        fotoUrl: uploadedFileUrl,
-        caption: keterangan || uploadedFile.name,
-        time: getNowLabel(),
-      };
-
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY_DOCS);
-        const existing = saved ? JSON.parse(saved) : DEFAULT_DOCS;
-        const updated = [fallbackDoc, ...existing].slice(0, MAX_DOCS);
-        localStorage.setItem(STORAGE_KEY_DOCS, JSON.stringify(updated));
-        setRecentDocs(updated.slice(0, 3));
-
-        setShowUploadSuccess(true);
-        setTimeout(() => setShowUploadSuccess(false), 2500);
-      } catch {
-        setShowStorageError(true);
-        setTimeout(() => setShowStorageError(false), 3000);
-      }
+      setShowStorageError(true);
+      setTimeout(() => setShowStorageError(false), 3000);
     } finally {
       setIsUploading(false);
       if (uploadedFileUrl) URL.revokeObjectURL(uploadedFileUrl);
@@ -292,30 +513,32 @@ export default function DashboardSekolah() {
       kutipan: null,
     };
 
+    let isSuccess = false;
     try {
       await createSekolahCatatan(resolvedSekolahId, {
         title: notePayload.judul,
         message: notePayload.meta,
         type: notePayload.type,
       });
-      localStorage.removeItem(STORAGE_KEY_NOTES);
+      isSuccess = true;
     } catch {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY_NOTES);
-        const existing = saved ? JSON.parse(saved) : [];
-        localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify([notePayload, ...existing]));
-      } catch {
-        // ignore
-      }
+      setShowStorageError(true);
+      setTimeout(() => setShowStorageError(false), 3000);
     } finally {
       setIsSubmittingNote(false);
-      setShowUnggahSuccess(true);
-      setTimeout(() => setShowUnggahSuccess(false), 2500);
-      setCatatan("");
+      if (isSuccess) {
+        setShowUnggahSuccess(true);
+        setTimeout(() => setShowUnggahSuccess(false), 2500);
+        setCatatan("");
+      }
     }
   };
 
   const displayName = user?.name || user?.identifier || "Pengguna Sekolah";
+  const profileAvatar = resolveImageUrl(
+    sekolah?.foto || user?.profilePhotoUrl || user?.avatarUrl || user?.imageUrl || user?.photoUrl,
+    iconProfile,
+  );
   const todayLabel = useMemo(
     () =>
       new Date().toLocaleDateString("id-ID", {
@@ -330,6 +553,11 @@ export default function DashboardSekolah() {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleOpenEditProfile = () => {
+    setShowProfileOverlay(false);
+    handleOpenOnboarding();
   };
 
   return (
@@ -392,13 +620,20 @@ export default function DashboardSekolah() {
               <button
                 type="button"
                 onClick={() => setShowProfileOverlay((prev) => !prev)}
-                className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer overflow-hidden"
                 aria-label="Buka Menu Profil"
               >
-                <img src={iconProfile} alt="" />
+                <img src={profileAvatar} alt="Foto profil" className="w-full h-full object-cover" />
               </button>
               {showProfileOverlay ? (
                 <div className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={handleOpenEditProfile}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Edit Profil
+                  </button>
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -586,6 +821,146 @@ export default function DashboardSekolah() {
           </div>
         </div>
       </div>
+
+
+      {showOnboardingModal ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 px-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl relative">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="absolute right-6 top-6 rounded-lg px-3 py-1 text-sm font-semibold text-rose-600 border border-rose-200 hover:bg-rose-50"
+            >
+              Logout
+            </button>
+            <button
+              type="button"
+              onClick={handleCloseOnboarding}
+              aria-label="Tutup popup onboarding"
+              className="absolute right-6 top-16 rounded-full p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6L6 18" />
+                <path d="M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="text-lg font-extrabold text-slate-900 mb-1">Lengkapi Profil Sekolah</h3>
+            <p className="mb-4 text-xs text-slate-500">Masukkan koordinat lokasi sekolah agar dashboard menampilkan data dengan benar.</p>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_220px]">
+              <div className="grid grid-cols-1 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Latitude</label>
+                  <input
+                    type="text"
+                    value={onboardingLat}
+                    onChange={(e) => setOnboardingLat(e.target.value)}
+                    placeholder="-6.200000"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Longitude</label>
+                  <input
+                    type="text"
+                    value={onboardingLng}
+                    onChange={(e) => setOnboardingLng(e.target.value)}
+                    placeholder="106.816666"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Jumlah siswa</label>
+                  <input
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    value={studentCountInput}
+                    onChange={(e) => setStudentCountInput(e.target.value)}
+                    placeholder="Contoh: 320"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400"
+                  />
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationPicker((prev) => !prev)}
+                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                  >
+                    {showLocationPicker ? "Sembunyikan Peta" : "Pilih dari Peta"}
+                  </button>
+                </div>
+                {showLocationPicker ? (
+                  <div className="rounded-xl border border-slate-200 p-2">
+                    <div className="mb-2 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="text"
+                        value={locationQuery}
+                        onChange={(e) => setLocationQuery(e.target.value)}
+                        placeholder="Cari lokasi, contoh: Monas Jakarta"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSearchLocation}
+                        disabled={locationSearching || !locationQuery.trim()}
+                        className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        {locationSearching ? "Mencari..." : "Cari"}
+                      </button>
+                    </div>
+                    {locationSearchError ? <p className="mb-2 text-xs text-rose-600">{locationSearchError}</p> : null}
+                    <LocationPickerMap
+                      value={{ lat: onboardingLat, lng: onboardingLng }}
+                      onChange={handleMapLocationChange}
+                    >
+                      <MapSearchController target={mapTarget} />
+                    </LocationPickerMap>
+                    <p className="mt-2 text-xs text-slate-500">Klik di peta atau geser pin untuk memilih koordinat sekolah.</p>
+                  </div>
+                ) : null}
+                {onboardingError ? (
+                  <p className="m-0 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">
+                    {onboardingError}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="mx-auto h-32 w-32 overflow-hidden rounded-full border border-slate-200 bg-white">
+                  <ImageBox
+                    src={onboardingPhotoPreview || sekolah?.foto}
+                    alt="Foto Profil Sekolah"
+                    fallbackSrc={iconProfile}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  id="onboarding-profile-photo"
+                  onChange={handleOnboardingPhotoChange}
+                />
+                <label
+                  htmlFor="onboarding-profile-photo"
+                  className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
+                >
+                  Edit Foto Profil
+                </label>
+              </div>
+            </div>
+            <div className="mt-6 flex flex-row-reverse gap-3">
+              <button
+                type="button"
+                onClick={handleSaveOnboarding}
+                disabled={isSavingOnboarding}
+                className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {isSavingOnboarding ? "Menyimpan..." : "Simpan Profil"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <footer className="bg-white border-t mt-auto">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between py-5">

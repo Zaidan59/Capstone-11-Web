@@ -1,20 +1,9 @@
 import api from './api'
 
-// Contract yang diharapkan dari backend:
-// POST /media/upload-image (multipart/form-data: file)
-// Response contoh:
-// {
-//   data: {
-//     url: "https://res.cloudinary.com/.../image/upload/...jpg",
-//     publicId: "simba/docs/abc123",
-//     width: 1200,
-//     height: 800,
-//     format: "jpg"
-//   }
-// }
 export const uploadImage = async (file, extraFields = {}) => {
   const form = new FormData()
-  form.append('file', file)
+  // BE route aktif saat ini: POST /api/upload dengan field "image"
+  form.append('image', file)
 
   Object.entries(extraFields).forEach(([key, value]) => {
     if (value !== undefined && value !== null && value !== '') {
@@ -22,13 +11,38 @@ export const uploadImage = async (file, extraFields = {}) => {
     }
   })
 
-  const res = await api.post('/media/upload-image', form, {
+  const res = await api.post('/upload', form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 
   const payload = res?.data?.data ?? res?.data ?? {}
   return {
-    url: payload?.url ?? payload?.secure_url ?? '',
+    url: payload?.imageUrl ?? payload?.url ?? payload?.secure_url ?? '',
+    publicId: payload?.publicId ?? payload?.public_id ?? '',
+    width: payload?.width ?? null,
+    height: payload?.height ?? null,
+    format: payload?.format ?? null,
+    raw: payload,
+  }
+}
+
+export const uploadProfileImage = async (file, extraFields = {}) => {
+  const form = new FormData()
+  form.append('avatar', file)
+
+  Object.entries(extraFields).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      form.append(key, value)
+    }
+  })
+
+  const res = await api.post('/upload/profile', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+
+  const payload = res?.data?.data ?? res?.data ?? {}
+  return {
+    url: payload?.imageUrl ?? payload?.url ?? payload?.secure_url ?? '',
     publicId: payload?.publicId ?? payload?.public_id ?? '',
     width: payload?.width ?? null,
     height: payload?.height ?? null,

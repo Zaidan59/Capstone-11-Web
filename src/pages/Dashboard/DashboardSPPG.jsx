@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import L from 'leaflet';
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { useNavigate } from 'react-router-dom';
 import IconMap from "../../assets/Icon_map.png";
 import IconBuilding from "../../assets/Icon_building.png";
@@ -13,9 +15,10 @@ import IconWarning from "../../assets/Icon_warning.png";
 import logo from "../../assets/Logo.png";
 import IconProfile from "../../assets/icon_profile.png";
 import { useAuth } from '../../hooks/useAuth';
-import { getSPPGById } from '../../services/sppgService';
+import { getSPPGById, updateMyProfile } from '../../services/sppgService';
 import { getNotificationsBySppgId } from '../../services/notificationService';
-import { createSppgMealDocumentation, uploadWeeklyMenuCsv } from '../../services/sppgDashboardService';
+import { createSppgMealDocumentation, uploadNutritionCsv, uploadWeeklyMenuCsv } from '../../services/sppgDashboardService';
+import { uploadProfileImage } from '../../services/mediaService';
 import { getDisplayValue } from '../../utils/display';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
@@ -38,8 +41,115 @@ function getImageSource(raw) {
   );
 }
 
+const locationPinIcon = L.divIcon({
+  className: '',
+  html: '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:9999px;background:#136DEC;border:3px solid #fff;box-shadow:0 4px 10px rgba(19,109,236,.35)"></span>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+});
+
+const parseCsvPreview = async (file) => {
+  if (!file) return [];
+  const text = await file.text();
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) return [];
+
+  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const idx = (keys) => headers.findIndex((h) => keys.includes(h));
+
+  const dateIdx = idx(["menudate", "menu_date", "date", "tanggal"]);
+  const mainIdx = idx(["rice", "hidanganutama", "hidangan_utama", "main", "main_dish"]);
+  const sideIdx = idx(["sidedish", "side_dish", "menupendamping", "menu_pendamping"]);
+  const fruitIdx = idx(["fruit", "buah"]);
+
+  const toCells = (line) => {
+    const values = [];
+    let current = "";
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i += 1) {
+      const ch = line[i];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    values.push(current.trim());
+    return values.map((v) => v.replace(/^"|"$/g, ""));
+  };
+
+  return lines.slice(1, 8).map((line) => {
+    const cols = toCells(line);
+    return {
+      day: dateIdx >= 0 ? cols[dateIdx] : "-",
+      mainDish: mainIdx >= 0 ? cols[mainIdx] : "-",
+      sideDish: sideIdx >= 0 ? cols[sideIdx] : "-",
+      fruit: fruitIdx >= 0 ? cols[fruitIdx] : "-",
+    };
+  });
+};
+
+function LocationPickerMap({ value, onChange, children }) {
+  const lat = Number(value?.lat);
+  const lng = Number(value?.lng);
+  const center = Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : [-6.2, 106.816666];
+
+  const ClickHandler = () => {
+    useMapEvents({
+      click: (event) => {
+        onChange({ lat: event.latlng.lat, lng: event.latlng.lng });
+      },
+    });
+    return null;
+  };
+
+  return (
+    <MapContainer center={center} zoom={12} className="h-64 w-full rounded-xl">
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <ClickHandler />
+      <Marker
+        position={center}
+        icon={locationPinIcon}
+        draggable={true}
+        eventHandlers={{
+          dragend: (event) => {
+            const marker = event.target;
+            const next = marker.getLatLng();
+            onChange({ lat: next.lat, lng: next.lng });
+          },
+        }}
+      />
+      {children}
+    </MapContainer>
+  );
+}
+
+function MapSearchController({ target }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!target) return;
+    const lat = Number(target.lat);
+    const lng = Number(target.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    map.flyTo([lat, lng], 15, { duration: 0.7 });
+  }, [map, target]);
+
+  return null;
+}
+
 const DashboardSPPG = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const sppgId = user?.sppgId || null;
   const [sppgData, setSppgData] = useState(null);
@@ -55,9 +165,34 @@ const DashboardSPPG = () => {
   const [menuData, setMenuData] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
+  const [showEditAccountModal, setShowEditAccountModal] = useState(false);
+  const [showCompleteProfileModal, setShowCompleteProfileModal] = useState(false);
+  const [hasAutoOpenedCompleteProfile, setHasAutoOpenedCompleteProfile] = useState(false);
   const [csvUploading, setCsvUploading] = useState(false);
   const [mealUploading, setMealUploading] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState('');
+  const [profilePhotoFile, setProfilePhotoFile] = useState(null);
+  const [onboardingPhotoPreview, setOnboardingPhotoPreview] = useState('');
+  const [onboardingPhotoFile, setOnboardingPhotoFile] = useState(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [locationQuery, setLocationQuery] = useState('');
+  const [locationSearching, setLocationSearching] = useState(false);
+  const [locationSearchError, setLocationSearchError] = useState('');
+  const [mapTarget, setMapTarget] = useState(null);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    address: '',
+    code: '',
+    personInCharge: '',
+    email: '',
+  });
+  const [completeProfileForm, setCompleteProfileForm] = useState({
+    capacityPerDay: '',
+    staffCount: '',
+    lat: '',
+    lng: '',
+  });
 
   useEffect(() => {
     if (!sppgId) {
@@ -93,7 +228,11 @@ const DashboardSPPG = () => {
   const sppgAddress = getDisplayValue(sppgData?.address);
   const sppgStatus = getDisplayValue(sppgData?.status);
   const sppgPhoto = resolveImageUrl(getImageSource(sppgData), IconBuilding);
-  const displayName = user?.name || user?.identifier || 'Admin SPPG';
+  const profileAvatar = resolveImageUrl(
+    getImageSource(sppgData) || user?.profilePhotoUrl || user?.avatarUrl || user?.imageUrl || user?.photoUrl,
+    IconProfile
+  );
+  const displayName = sppgData?.name || user?.name || user?.identifier || 'Admin SPPG';
   const schoolCount = servedSchools.length > 0 ? servedSchools.length : '-';
   const uploadPreviewItems =
     servedSchools.length > 0
@@ -102,7 +241,7 @@ const DashboardSPPG = () => {
           time: '-',
           img: resolveImageUrl(getImageSource(school)),
         }))
-      : [{ school: '-', time: '-', img: null }];
+      : [];
   const feedbackItems =
     notifications.length > 0
       ? notifications.slice(0, 3).map((item) => ({
@@ -119,15 +258,7 @@ const DashboardSPPG = () => {
           school: getDisplayValue(item?.schoolName),
           variant: item?.status === 'new' ? 'warning' : item?.status === 'reviewed' ? 'success' : 'info',
         }))
-      : [
-          {
-            title: '-',
-            time: '-',
-            desc: '-',
-            school: '-',
-            variant: 'info',
-          },
-        ];
+      : [];
   const nutritionCoverage = menuData.length > 0 ? '100%' : '-';
   const nutritionBarWidth = menuData.length > 0 ? '100%' : '0%';
   const todayLabel = useMemo(
@@ -140,10 +271,46 @@ const DashboardSPPG = () => {
     [],
   );
 
-  const handleFileDrop = (e) => {
+  const isOperationalProfileIncomplete = useMemo(() => {
+    if (!sppgData) return false;
+    const capacity = Number(sppgData?.capacityPerDay ?? 0);
+    const staff = Number(sppgData?.staffCount ?? 0);
+    const hasLat = sppgData?.lat !== null && sppgData?.lat !== undefined && String(sppgData?.lat).trim() !== '';
+    const hasLng = sppgData?.lng !== null && sppgData?.lng !== undefined && String(sppgData?.lng).trim() !== '';
+
+    return capacity <= 0 || staff <= 0 || !hasLat || !hasLng;
+  }, [sppgData]);
+
+  const canSubmitCompleteProfile = useMemo(() => {
+    const capacity = Number(completeProfileForm.capacityPerDay);
+    const staff = Number(completeProfileForm.staffCount);
+    const lat = Number(completeProfileForm.lat);
+    const lng = Number(completeProfileForm.lng);
+    const hasPhoto = Boolean(onboardingPhotoPreview || getImageSource(sppgData));
+
+    return (
+      hasPhoto &&
+      Number.isFinite(capacity) &&
+      capacity > 0 &&
+      Number.isFinite(staff) &&
+      staff > 0 &&
+      Number.isFinite(lat) &&
+      Number.isFinite(lng)
+    );
+  }, [completeProfileForm, onboardingPhotoPreview, sppgData]);
+
+  const handleFileDrop = async (e) => {
     e.preventDefault();
     const file = e.dataTransfer?.files[0] || e.target.files[0];
-    if (file) setUploadedFile(file);
+    if (!file) return;
+    setUploadedFile(file);
+    try {
+      const preview = await parseCsvPreview(file);
+      setMenuData(preview);
+    } catch {
+      setMenuData([]);
+      setActionMessage('File CSV tidak bisa dipratinjau. Periksa format kolom.');
+    }
   };
 
   const handleNutritionFileChange = (e) => {
@@ -167,9 +334,31 @@ const DashboardSPPG = () => {
     try {
       await uploadWeeklyMenuCsv(file);
       setActionMessage(`Berhasil unggah CSV: ${file.name}`);
-      setMenuData((prev) => (prev.length > 0 ? prev : [{ day: '-', mainDish: '-', sideDish: '-', fruit: '-' }]));
     } catch (err) {
       setActionMessage(err?.response?.data?.message ?? 'Gagal unggah CSV.');
+    } finally {
+      setCsvUploading(false);
+    }
+  };
+
+  const handleUploadNutrition = async (file) => {
+    if (!file) {
+      setActionMessage('Pilih file CSV nutrisi terlebih dahulu.');
+      return;
+    }
+
+    setCsvUploading(true);
+    setActionMessage('');
+    try {
+      await uploadNutritionCsv(file);
+      setActionMessage(`Berhasil unggah CSV nutrisi: ${file.name}`);
+      if (sppgId) {
+        const sppgRes = await getSPPGById(sppgId);
+        const data = sppgRes?.data?.data ?? null;
+        setSppgData(data);
+      }
+    } catch (err) {
+      setActionMessage(err?.response?.data?.message ?? 'Gagal unggah CSV nutrisi.');
     } finally {
       setCsvUploading(false);
     }
@@ -207,6 +396,190 @@ const DashboardSPPG = () => {
     navigate('/login');
   };
 
+  const handleOpenEditAccount = () => {
+    setEditForm({
+      name: sppgData?.name ?? '',
+      address: sppgData?.address ?? '',
+      code: sppgData?.sppgCode ?? '',
+      personInCharge: sppgData?.personInCharge ?? '',
+      email: user?.email ?? '',
+    });
+    setProfilePhotoPreview(getImageSource(sppgData) || user?.profilePhotoUrl || user?.avatarUrl || user?.imageUrl || user?.photoUrl || '');
+    setShowEditAccountModal(true);
+    setShowProfileOverlay(false);
+  };
+
+  const handleProfilePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setProfilePhotoFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setProfilePhotoPreview(objectUrl);
+  };
+
+  const handleSaveEditAccount = async () => {
+    const nextName = editForm.name.trim();
+    const nextAddress = editForm.address.trim();
+    const nextCode = editForm.code.trim();
+    const nextPic = editForm.personInCharge.trim();
+    const nextEmail = editForm.email.trim().toLowerCase();
+    try {
+      let photoUrl = sppgData?.photoUrl || '';
+      if (profilePhotoFile) {
+          try {
+          const uploaded = await uploadProfileImage(profilePhotoFile, { folder: 'simba/profiles' });
+          photoUrl = uploaded?.url || photoUrl;
+        } catch {
+          setActionMessage('Upload foto profil gagal, data lain tetap disimpan.');
+        }
+      }
+
+      await updateMyProfile({
+        name: nextName || sppgData?.name,
+        address: nextAddress || sppgData?.address,
+        sppgCode: nextCode || sppgData?.sppgCode,
+        personInCharge: nextPic || sppgData?.personInCharge,
+        email: nextEmail || user?.email,
+        photoUrl,
+      });
+
+      if (sppgId) {
+        const sppgRes = await getSPPGById(sppgId);
+        const data = sppgRes?.data?.data ?? null;
+        setSppgData(data);
+      }
+
+      updateUser({
+        email: nextEmail || user?.email,
+        identifier: nextName || user?.identifier,
+        name: nextName || user?.name,
+        profilePhotoUrl: photoUrl || user?.profilePhotoUrl || user?.avatarUrl || user?.imageUrl || user?.photoUrl,
+      });
+
+      setActionMessage('Perubahan akun berhasil disimpan ke database.');
+      setShowEditAccountModal(false);
+      setProfilePhotoFile(null);
+    } catch (err) {
+      setActionMessage(err?.response?.data?.message ?? 'Gagal menyimpan perubahan akun.');
+    }
+  };
+
+  const handleOpenCompleteProfile = () => {
+    setCompleteProfileForm({
+      capacityPerDay: String(sppgData?.capacityPerDay ?? ''),
+      staffCount: String(sppgData?.staffCount ?? ''),
+      lat: String(sppgData?.lat ?? ''),
+      lng: String(sppgData?.lng ?? ''),
+    });
+    setOnboardingPhotoPreview(getImageSource(sppgData) || '');
+    setShowCompleteProfileModal(true);
+  };
+
+  const handleCompleteProfilePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setOnboardingPhotoFile(file);
+    setOnboardingPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleMapLocationChange = ({ lat, lng }) => {
+    setCompleteProfileForm((prev) => ({
+      ...prev,
+      lat: String(Number(lat).toFixed(6)),
+      lng: String(Number(lng).toFixed(6)),
+    }));
+  };
+
+  const handleSearchLocation = async () => {
+    const q = locationQuery.trim();
+    if (!q) return;
+
+    setLocationSearching(true);
+    setLocationSearchError('');
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      const data = await res.json();
+      const first = Array.isArray(data) ? data[0] : null;
+
+      if (!first) {
+        setLocationSearchError('Lokasi tidak ditemukan. Coba kata kunci lain.');
+        return;
+      }
+
+      const lat = Number(first.lat);
+      const lng = Number(first.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        setLocationSearchError('Koordinat lokasi tidak valid.');
+        return;
+      }
+
+      handleMapLocationChange({ lat, lng });
+      setMapTarget({ lat, lng });
+    } catch {
+      setLocationSearchError('Gagal mencari lokasi. Coba lagi.');
+    } finally {
+      setLocationSearching(false);
+    }
+  };
+
+  const handleSaveCompleteProfile = async () => {
+    try {
+      setShowCompleteProfileModal(false);
+      let photoUrl = sppgData?.photoUrl || '';
+      if (onboardingPhotoFile) {
+        try {
+          const uploaded = await uploadProfileImage(onboardingPhotoFile, { folder: 'simba/profiles' });
+          photoUrl = uploaded?.url || photoUrl;
+        } catch {
+          setActionMessage('Upload foto SPPG gagal, data profil tetap disimpan.');
+        }
+      }
+
+      await updateMyProfile({
+        capacityPerDay: Number(completeProfileForm.capacityPerDay),
+        staffCount: Number(completeProfileForm.staffCount),
+        lat: completeProfileForm.lat.trim(),
+        lng: completeProfileForm.lng.trim(),
+        photoUrl,
+      });
+
+      if (sppgId) {
+        const sppgRes = await getSPPGById(sppgId);
+        const data = sppgRes?.data?.data ?? null;
+        setSppgData(data);
+        updateUser({
+          profilePhotoUrl:
+            data?.photoUrl ||
+            data?.imageUrl ||
+            photoUrl ||
+            user?.profilePhotoUrl ||
+            user?.avatarUrl ||
+            user?.imageUrl ||
+            user?.photoUrl,
+        });
+      }
+
+      setActionMessage('Profil operasional berhasil disimpan ke database.');
+      setOnboardingPhotoFile(null);
+    } catch (err) {
+      setShowCompleteProfileModal(true);
+      setActionMessage(err?.response?.data?.message ?? 'Gagal menyimpan profil operasional.');
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && sppgData && isOperationalProfileIncomplete && !hasAutoOpenedCompleteProfile) {
+      handleOpenCompleteProfile();
+      setHasAutoOpenedCompleteProfile(true);
+    }
+  }, [loading, sppgData, isOperationalProfileIncomplete, hasAutoOpenedCompleteProfile]);
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col">
       <nav className="sticky top-0 z-40 bg-white shadow w-full">
@@ -231,13 +604,20 @@ const DashboardSPPG = () => {
               <button
                 type="button"
                 onClick={() => setShowProfileOverlay((prev) => !prev)}
-                className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer"
+                className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer overflow-hidden"
                 aria-label="Buka Menu Profil"
               >
-                <img src={IconProfile} alt="" />
+                <img src={profileAvatar} alt="Foto profil" className="w-full h-full object-cover" />
               </button>
               {showProfileOverlay ? (
                 <div className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={handleOpenEditAccount}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Edit Akun
+                  </button>
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -269,6 +649,12 @@ const DashboardSPPG = () => {
           {actionMessage ? (
             <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
               {actionMessage}
+            </div>
+          ) : null}
+          {!loading && isOperationalProfileIncomplete ? (
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-bold text-amber-800">Profil operasional belum lengkap.</p>
+              <p className="mt-1 text-xs text-amber-700">Lengkapi foto profil, kapasitas harian, jumlah staf, dan koordinat lokasi.</p>
             </div>
           ) : null}
 
@@ -367,11 +753,15 @@ const DashboardSPPG = () => {
                         </tr>
                       ))
                     ) : (
-                      <tr className="border-b border-gray-100 last:border-0">
-                        <td className="px-6 py-4 text-gray-700">-</td>
-                        <td className="px-6 py-4 text-gray-700">-</td>
-                        <td className="px-6 py-4 text-gray-700">-</td>
-                        <td className="px-6 py-4 text-gray-700">-</td>
+                      <tr>
+                        <td colSpan={4} className="px-6 py-8">
+                          <div className="flex flex-col items-center justify-center rounded-lg bg-slate-50 border border-slate-200 py-6">
+                            <p className="text-sm font-semibold text-slate-700">Belum ada menu mingguan yang ditampilkan</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Unggah file CSV lalu klik <span className="font-semibold">Konfirmasi Menu</span> untuk menampilkan pratinjau.
+                            </p>
+                          </div>
+                        </td>
                       </tr>
                     )}
                   </tbody>
@@ -409,7 +799,7 @@ const DashboardSPPG = () => {
                 <p className="text-base font-bold text-gray-700">Unggah CSV Nutrisi</p>
                 <button
                   type="button"
-                  onClick={() => handleUploadCsv(nutritionFile)}
+                  onClick={() => handleUploadNutrition(nutritionFile)}
                   disabled={csvUploading || !nutritionFile}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95 disabled:bg-slate-300 disabled:cursor-not-allowed"
                 >
@@ -423,7 +813,8 @@ const DashboardSPPG = () => {
                   <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Calories</span>,{' '}
                   <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Protein</span>,{' '}
                   <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Fat</span>,{' '}
-                  dan <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Carbs</span>.
+                  <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Carbs</span>, dan{' '}
+                  <span className="text-blue-500 font-mono font-semibold bg-blue-50 px-1 rounded">Fiber</span>.
                 </p>
                 <div className="rounded-xl p-5 space-y-3" style={{ backgroundColor: '#136DEC0D', border: '1px solid #136DEC1A' }}>
                   <div className="flex justify-between items-center">
@@ -434,6 +825,11 @@ const DashboardSPPG = () => {
                     <div className="bg-blue-600 h-2 rounded-full" style={{ width: nutritionBarWidth }} />
                   </div>
                   <p className="text-sm text-gray-500">Cakupan Data: {nutritionCoverage}</p>
+                  {nutritionCoverage === '-' ? (
+                    <p className="text-xs text-slate-500">
+                      Belum ada data nutrisi terbaru. Unggah CSV nutrisi untuk melihat skor validasi.
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -518,23 +914,32 @@ const DashboardSPPG = () => {
 
             <div className="space-y-4">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Unggahan Hari Ini</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {uploadPreviewItems.map((item, i) => (
-                  <div key={i} className="rounded-xl overflow-hidden border border-gray-200">
-                    <div className="aspect-square w-full overflow-hidden">
-                      {item.img ? (
-                        <img src={item.img} alt={item.school} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400 text-sm font-semibold">-</div>
-                      )}
+              {uploadPreviewItems.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {uploadPreviewItems.map((item, i) => (
+                    <div key={i} className="rounded-xl overflow-hidden border border-gray-200">
+                      <div className="aspect-square w-full overflow-hidden">
+                        {item.img ? (
+                          <img src={item.img} alt={item.school} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400 text-sm font-semibold">Belum ada foto</div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="text-sm font-semibold text-blue-500">{getDisplayValue(item.school)}</p>
+                        <p className="text-xs text-gray-400">{getDisplayValue(item.time)}</p>
+                      </div>
                     </div>
-                    <div className="p-3">
-                      <p className="text-sm font-semibold text-blue-500">{getDisplayValue(item.school)}</p>
-                      <p className="text-xs text-gray-400">{getDisplayValue(item.time)}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
+                  <p className="text-sm font-semibold text-slate-700">Belum ada dokumentasi yang diunggah hari ini</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Tambahkan foto makanan dan kirim dokumentasi untuk melihat riwayat unggahan di sini.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -547,7 +952,7 @@ const DashboardSPPG = () => {
           {/* SCHOOL FEEDBACK CARD */}
           <div className="px-16 pb-10">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {feedbackItems.map((item, index) => {
+              {feedbackItems.length > 0 ? feedbackItems.map((item, index) => {
                 const borderColor =
                   item.variant === 'warning'
                     ? '#EF4444'
@@ -580,7 +985,14 @@ const DashboardSPPG = () => {
                     </div>
                   </div>
                 );
-              })}
+              }) : (
+                <div className="md:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                  <p className="text-sm font-semibold text-slate-700">Belum ada umpan balik baru dari sekolah</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Notifikasi keluhan, masukan, atau konfirmasi dari sekolah akan muncul di bagian ini.
+                  </p>
+                </div>
+              )}
 
               <button
                 type="button"
@@ -609,6 +1021,156 @@ const DashboardSPPG = () => {
           </div>
         </div>
       </footer>
+
+      {showEditAccountModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 px-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-extrabold text-slate-900">Edit Akun SPPG</h3>
+                <p className="mt-1 text-xs text-slate-500">Perbarui informasi profil akun dari dashboard.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditAccountModal(false)}
+                className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100"
+              >
+                Tutup
+              </button>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[180px_1fr]">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="mx-auto h-32 w-32 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                  <img src={resolveImageUrl(profilePhotoPreview, IconProfile)} alt="Preview profil" className="h-full w-full object-cover" />
+                </div>
+                <label className="mt-3 block cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-bold text-white hover:bg-blue-700">
+                  Upload Foto Profil
+                  <input type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoChange} />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Nama SPPG</label>
+                  <input value={editForm.name} onChange={(e) => setEditForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Email</label>
+                  <input type="email" value={editForm.email} onChange={(e) => setEditForm((prev) => ({ ...prev, email: e.target.value }))} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Kode SPPG</label>
+                  <input value={editForm.code} onChange={(e) => setEditForm((prev) => ({ ...prev, code: e.target.value }))} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Penanggung Jawab</label>
+                  <input value={editForm.personInCharge} onChange={(e) => setEditForm((prev) => ({ ...prev, personInCharge: e.target.value }))} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Alamat</label>
+                  <textarea value={editForm.address} onChange={(e) => setEditForm((prev) => ({ ...prev, address: e.target.value }))} rows={3} className="w-full resize-none rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setShowEditAccountModal(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                Batal
+              </button>
+              <button type="button" onClick={handleSaveEditAccount} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700">
+                Simpan Perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showCompleteProfileModal ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 px-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-extrabold text-slate-900">Lengkapi Profil Operasional</h3>
+            <p className="mt-1 text-xs text-slate-500">Lengkapi data ini agar dashboard menampilkan informasi SPPG dengan benar.</p>
+
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-[180px_1fr]">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div className="mx-auto h-32 w-32 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                  <img src={resolveImageUrl(onboardingPhotoPreview || getImageSource(sppgData), IconBuilding)} alt="Foto SPPG" className="h-full w-full object-cover" />
+                </div>
+                <label className="mt-3 block cursor-pointer rounded-lg bg-blue-600 px-3 py-2 text-center text-xs font-bold text-white hover:bg-blue-700">
+                  Upload Foto SPPG
+                  <input type="file" accept="image/*" className="hidden" onChange={handleCompleteProfilePhotoChange} />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Kapasitas Harian (porsi)</label>
+                  <input type="number" min="1" value={completeProfileForm.capacityPerDay} onChange={(e) => setCompleteProfileForm((prev) => ({ ...prev, capacityPerDay: e.target.value }))} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Jumlah Staf</label>
+                  <input type="number" min="1" value={completeProfileForm.staffCount} onChange={(e) => setCompleteProfileForm((prev) => ({ ...prev, staffCount: e.target.value }))} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Latitude</label>
+                  <input type="text" value={completeProfileForm.lat} onChange={(e) => setCompleteProfileForm((prev) => ({ ...prev, lat: e.target.value }))} placeholder="-6.200000" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Longitude</label>
+                  <input type="text" value={completeProfileForm.lng} onChange={(e) => setCompleteProfileForm((prev) => ({ ...prev, lng: e.target.value }))} placeholder="106.816666" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400" />
+                </div>
+                <div className="sm:col-span-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationPicker((prev) => !prev)}
+                    className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 hover:bg-blue-100"
+                  >
+                    {showLocationPicker ? 'Sembunyikan Peta' : 'Pilih dari Peta'}
+                  </button>
+                </div>
+                {showLocationPicker ? (
+                  <div className="sm:col-span-2 rounded-xl border border-slate-200 p-2">
+                    <div className="mb-2 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="text"
+                        value={locationQuery}
+                        onChange={(e) => setLocationQuery(e.target.value)}
+                        placeholder="Cari lokasi, contoh: Monas Jakarta"
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-400"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSearchLocation}
+                        disabled={locationSearching || !locationQuery.trim()}
+                        className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                      >
+                        {locationSearching ? 'Mencari...' : 'Cari'}
+                      </button>
+                    </div>
+                    {locationSearchError ? <p className="mb-2 text-xs text-rose-600">{locationSearchError}</p> : null}
+                    <LocationPickerMap
+                      value={{ lat: completeProfileForm.lat, lng: completeProfileForm.lng }}
+                      onChange={handleMapLocationChange}
+                    >
+                      <MapSearchController target={mapTarget} />
+                    </LocationPickerMap>
+                    <p className="mt-2 text-xs text-slate-500">
+                      Klik di peta atau geser pin untuk mengatur lokasi SPPG.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button type="button" onClick={handleSaveCompleteProfile} disabled={!canSubmitCompleteProfile} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+                Simpan Profil
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
     </div>
   );
