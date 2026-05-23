@@ -155,12 +155,6 @@ function normalizeSekolahData(raw) {
   };
 }
 
-function getLatestDocumentationImage(items) {
-  if (!Array.isArray(items) || items.length === 0) return null;
-  const latest = items[0];
-  return latest?.fotoUrl ?? latest?.foto ?? latest?.photoUrl ?? latest?.photo_url ?? null;
-}
-
 export default function DashboardSekolah() {
   const { user, logout, updateUser } = useAuth();
   const navigate = useNavigate();
@@ -214,10 +208,9 @@ export default function DashboardSekolah() {
 
         if (sekolahPayload) {
           const normalized = normalizeSekolahData(sekolahPayload);
-          const latestDocImage = getLatestDocumentationImage(dokumentasiItems);
           setSekolah({
             ...normalized,
-            menuImage: latestDocImage ?? normalized?.menuImage ?? null,
+            menuImage: normalized?.menuImage ?? null,
           });
           return;
         }
@@ -240,17 +233,12 @@ export default function DashboardSekolah() {
           const matched =
             items.find((item) => item?.id === id || item?.userId === user?.id) ?? null;
           const normalized = normalizeSekolahData(matched);
-          const dokumentasiItems =
-            dokumentasiRes.status === "fulfilled"
-              ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
-              : [];
-          const latestDocImage = getLatestDocumentationImage(dokumentasiItems);
 
           setSekolah(
             normalized
               ? {
                   ...normalized,
-                  menuImage: latestDocImage ?? normalized?.menuImage ?? null,
+                  menuImage: normalized?.menuImage ?? null,
                 }
               : null,
           );
