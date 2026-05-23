@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { login as loginService } from '../../services/authService'
+import { login as loginService, resolveUserEntityIds } from '../../services/authService'
 import { useAuth } from '../../hooks/useAuth'
 import Logo from '../../assets/Logo.png'
 
@@ -39,12 +39,11 @@ export default function Login() {
         throw new Error('Data pengguna tidak ditemukan pada response login.')
       }
 
-      // Delay 1.5 detik untuk consistency
-      setTimeout(() => {
-        login({ user: userData, token })
-        navigate(dashboardPath)
-        setLoading(false)
-      }, 1500)
+      const resolvedUser = await resolveUserEntityIds({ user: userData, role })
+
+      login({ user: resolvedUser, token })
+      navigate(dashboardPath)
+      setLoading(false)
     } catch (err) {
       setError(err?.response?.data?.message ?? 'Login gagal. Periksa kembali data Anda.')
       setLoading(false)

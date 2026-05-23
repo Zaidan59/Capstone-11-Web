@@ -15,6 +15,7 @@ import IconProfile from "../../assets/icon_profile.png";
 import { useAuth } from '../../hooks/useAuth';
 import { getSPPGById } from '../../services/sppgService';
 import { getNotificationsBySppgId } from '../../services/notificationService';
+import { createSppgMealDocumentation, uploadWeeklyMenuCsv } from '../../services/sppgDashboardService';
 import { getDisplayValue } from '../../utils/display';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
@@ -38,18 +39,25 @@ function getImageSource(raw) {
 }
 
 const DashboardSPPG = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const sppgId = user?.sppgId || user?.id || null;
-  const profileId = user?.sppgId || user?.id || null;
-  const hasSppgId = Boolean(sppgId);
+  const sppgId = user?.sppgId || null;
   const [sppgData, setSppgData] = useState(null);
   const [servedSchools, setServedSchools] = useState([]);
-  const [loading, setLoading] = useState(hasSppgId);
-  const [error, setError] = useState(hasSppgId ? '' : 'ID SPPG belum tersedia.');
+  const [loading, setLoading] = useState(Boolean(sppgId));
+  const [error, setError] = useState(sppgId ? '' : 'ID SPPG belum tersedia.');
   const [uploadedFile, setUploadedFile] = useState(null);
+  const [nutritionFile, setNutritionFile] = useState(null);
+  const [mealPhotoFile, setMealPhotoFile] = useState(null);
+  const [mealProductionDate, setMealProductionDate] = useState('');
+  const [mealTargetSchoolId, setMealTargetSchoolId] = useState('');
+  const [mealNotes, setMealNotes] = useState('');
   const [menuData, setMenuData] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [showProfileOverlay, setShowProfileOverlay] = useState(false);
+  const [csvUploading, setCsvUploading] = useState(false);
+  const [mealUploading, setMealUploading] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
 
   useEffect(() => {
     if (!sppgId) {
@@ -138,6 +146,67 @@ const DashboardSPPG = () => {
     if (file) setUploadedFile(file);
   };
 
+  const handleNutritionFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) setNutritionFile(file);
+  };
+
+  const handleMealPhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) setMealPhotoFile(file);
+  };
+
+  const handleUploadCsv = async (file) => {
+    if (!file) {
+      setActionMessage('Pilih file CSV terlebih dahulu.');
+      return;
+    }
+
+    setCsvUploading(true);
+    setActionMessage('');
+    try {
+      await uploadWeeklyMenuCsv(file);
+      setActionMessage(`Berhasil unggah CSV: ${file.name}`);
+      setMenuData((prev) => (prev.length > 0 ? prev : [{ day: '-', mainDish: '-', sideDish: '-', fruit: '-' }]));
+    } catch (err) {
+      setActionMessage(err?.response?.data?.message ?? 'Gagal unggah CSV.');
+    } finally {
+      setCsvUploading(false);
+    }
+  };
+
+  const handleSubmitMealDocumentation = async () => {
+    if (!mealPhotoFile || !mealTargetSchoolId || !mealNotes.trim()) {
+      setActionMessage('Lengkapi foto, sekolah tujuan, dan catatan dokumentasi.');
+      return;
+    }
+
+    setMealUploading(true);
+    setActionMessage('');
+    try {
+      await createSppgMealDocumentation({
+        photo: mealPhotoFile,
+        notes: mealNotes.trim(),
+        productionDate: mealProductionDate || new Date().toISOString().slice(0, 10),
+        targetSchoolIds: [mealTargetSchoolId],
+      });
+      setActionMessage('Dokumentasi makanan berhasil dikirim.');
+      setMealPhotoFile(null);
+      setMealProductionDate('');
+      setMealTargetSchoolId('');
+      setMealNotes('');
+    } catch (err) {
+      setActionMessage(err?.response?.data?.message ?? 'Gagal mengirim dokumentasi makanan.');
+    } finally {
+      setMealUploading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col">
       <nav className="sticky top-0 z-40 bg-white shadow w-full">
@@ -158,15 +227,27 @@ const DashboardSPPG = () => {
               <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500" />
             </button>
             <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
-            <button
-              type="button"
-              onClick={() => profileId && navigate(`/profil/sppg/${profileId}`)}
-              className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Buka Profil SPPG"
-              disabled={!profileId}
-            >
-              <img src={IconProfile} alt="" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowProfileOverlay((prev) => !prev)}
+                className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer"
+                aria-label="Buka Menu Profil"
+              >
+                <img src={IconProfile} alt="" />
+              </button>
+              {showProfileOverlay ? (
+                <div className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </nav>
@@ -183,6 +264,11 @@ const DashboardSPPG = () => {
           {error ? (
             <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
               {error}
+            </div>
+          ) : null}
+          {actionMessage ? (
+            <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+              {actionMessage}
             </div>
           ) : null}
 
@@ -221,7 +307,11 @@ const DashboardSPPG = () => {
               </div>
             </div>
             <div className="flex items-center flex-shrink-0">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-medium flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap">
+              <button
+                type="button"
+                disabled
+                className="bg-slate-300 text-white px-6 py-2 rounded-xl font-medium flex items-center gap-2 cursor-not-allowed whitespace-nowrap"
+              >
                 <img src={IconPrint} alt="Print Icon" className="w-3 h-3 object-contain"
                   style={{ filter: 'brightness(0) invert(1)' }} />
                 Cetak Label
@@ -290,7 +380,12 @@ const DashboardSPPG = () => {
             </div>
 
             <div className="flex justify-end">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95">
+              <button
+                type="button"
+                onClick={() => handleUploadCsv(uploadedFile)}
+                disabled={csvUploading || !uploadedFile}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95 disabled:bg-slate-300 disabled:cursor-not-allowed"
+              >
                 Konfirmasi Menu
               </button>
             </div>
@@ -309,10 +404,15 @@ const DashboardSPPG = () => {
                 className="border-2 border-dashed border-gray-300 rounded-xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all w-full md:w-1/2"
                 onClick={() => document.getElementById('nutritionCsvInput').click()}
               >
-                <input id="nutritionCsvInput" type="file" accept=".csv" className="hidden" />
+                <input id="nutritionCsvInput" type="file" accept=".csv" className="hidden" onChange={handleNutritionFileChange} />
                 <img src={IconNutrisi} alt="Nutrisi Icon" className="w-8 h-8 object-contain" />
                 <p className="text-base font-bold text-gray-700">Unggah CSV Nutrisi</p>
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95">
+                <button
+                  type="button"
+                  onClick={() => handleUploadCsv(nutritionFile)}
+                  disabled={csvUploading || !nutritionFile}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-xl font-bold transition-all active:scale-95 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                >
                   Unggah CSV
                 </button>
               </div>
@@ -351,6 +451,7 @@ const DashboardSPPG = () => {
               <div
                 className="rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all w-full md:w-1/3 min-h-[320px]"
                 style={{ backgroundColor: '#F1F5F9', border: '2px dashed #CBD5E1' }}
+                onClick={() => document.getElementById('mealPhotoInput').click()}
                 onMouseEnter={e => {
                   e.currentTarget.style.backgroundColor = '#EFF6FF';
                   e.currentTarget.style.border = '2px dashed #93C5FD';
@@ -360,35 +461,55 @@ const DashboardSPPG = () => {
                   e.currentTarget.style.border = '2px dashed #CBD5E1';
                 }}
               >
+                <input id="mealPhotoInput" type="file" accept="image/*" className="hidden" onChange={handleMealPhotoChange} />
                 <img src={IconCamera} alt="Camera Icon" className="w-10 h-10 object-contain" />
-                <p className="text-sm text-gray-500 font-medium">Tambah Foto Makanan</p>
+                <p className="text-sm text-gray-500 font-medium">{mealPhotoFile ? mealPhotoFile.name : 'Tambah Foto Makanan'}</p>
               </div>
 
               <div className="flex flex-col gap-5 w-full md:w-2/3 min-h-[320px]">
                 <div className="flex gap-4">
                   <div className="flex flex-col gap-1.5 flex-1">
                     <label className="text-sm font-semibold text-gray-700">Tanggal Persiapan</label>
-                    <input type="text" placeholder="mm/dd/yyyy"
+                    <input
+                      type="date"
+                      value={mealProductionDate}
+                      onChange={(e) => setMealProductionDate(e.target.value)}
                       className="border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-400 outline-none focus:border-blue-400" />
                   </div>
                   <div className="flex flex-col gap-1.5 flex-1">
                     <label className="text-sm font-semibold text-gray-700">Sekolah Tujuan</label>
-                    <select className="border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:border-blue-400 bg-white">
-                      <option>SDN 01 Kebayoran Baru</option>
-                      <option>SMPN 12 Jakarta</option>
-                      <option>SDN 05 Petogogan</option>
+                    <select
+                      value={mealTargetSchoolId}
+                      onChange={(e) => setMealTargetSchoolId(e.target.value)}
+                      className="border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-700 outline-none focus:border-blue-400 bg-white"
+                    >
+                      <option value="">Pilih Sekolah</option>
+                      {servedSchools.map((school) => (
+                        <option key={school.id} value={school.id}>
+                          {getDisplayValue(school?.schoolName ?? school?.name)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-semibold text-gray-700">Keterangan/Catatan</label>
-                  <textarea placeholder="Contoh: Porsi segar dikirim ke SDN 01" rows={3}
+                  <textarea
+                    placeholder="Contoh: Porsi segar dikirim ke SDN 01"
+                    rows={3}
+                    value={mealNotes}
+                    onChange={(e) => setMealNotes(e.target.value)}
                     className="border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-400 outline-none focus:border-blue-400 resize-none" />
                 </div>
 
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold transition-all active:scale-95 w-fit">
-                  Kirim Dokumentasi
+                <button
+                  type="button"
+                  onClick={handleSubmitMealDocumentation}
+                  disabled={mealUploading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2.5 rounded-xl font-bold transition-all active:scale-95 w-fit disabled:bg-slate-300 disabled:cursor-not-allowed"
+                >
+                  {mealUploading ? 'Mengirim...' : 'Kirim Dokumentasi'}
                 </button>
               </div>
             </div>
@@ -461,9 +582,13 @@ const DashboardSPPG = () => {
                 );
               })}
 
-              <div className="bg-gray-50 rounded-xl border border-gray-200 shadow-sm p-5 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-all">
-                <p className="text-base font-bold text-gray-900">Lihat Riwayat →</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/notification')}
+                className="bg-gray-50 rounded-xl border border-gray-200 shadow-sm p-5 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-all w-full"
+              >
+                <p className="text-base font-bold text-gray-900">Lihat Riwayat</p>
+              </button>
             </div>
           </div>
 
@@ -477,10 +602,10 @@ const DashboardSPPG = () => {
             <img src={logo} alt="SIMBA Logo" className="w-9 h-9" />
             <span className="font-bold text-[20px] text-[#1a2233] tracking-wide">SIMBA</span>
           </div>
-          <div className="flex gap-6 text-sm text-slate-500">
-            <a href="#" className="hover:underline">Pusat Dukungan</a>
-            <a href="#" className="hover:underline">Pedoman Kebijakan</a>
-            <a href="#" className="hover:underline">Privasi</a>
+          <div className="flex gap-6 text-sm text-slate-400">
+            <span className="cursor-not-allowed">Pusat Dukungan</span>
+            <span className="cursor-not-allowed">Pedoman Kebijakan</span>
+            <span className="cursor-not-allowed">Privasi</span>
           </div>
         </div>
       </footer>
