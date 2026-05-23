@@ -1,7 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Logo from "../../assets/Logo.png";
-import Regist_image from "../../assets/Regist_image.png";
+import RegistImage from "../../assets/Regist_image.png";
 import { register } from "../../services/authService";
 
 const sppgOptions = [
@@ -11,6 +10,17 @@ const sppgOptions = [
   "SPPG Bambu Apus",
 ];
 
+const emptyForm = {
+  nama: "",
+  email: "",
+  nomor: "",
+  kode: "",
+  alamat: "",
+  sppg: "",
+  password: "",
+  konfirmasi: "",
+};
+
 export default function Register() {
   const navigate = useNavigate();
   const [role, setRole] = useState("sppg");
@@ -19,42 +29,170 @@ export default function Register() {
   const [agreed, setAgreed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [form, setForm] = useState(emptyForm);
 
-  const [form, setForm] = useState({
-    nama: "",
-    email: "",
-    nomor: "",
-    kode: "",
-    alamat: "",
-    sppg: "",
-    password: "",
-    konfirmasi: "",
-  });
+  const validateField = (field, value, snapshot = form, activeRole = role) => {
+    const draft = { ...snapshot, [field]: value };
+
+    if (field === "nama") {
+      if (!draft.nama.trim()) return "Nama wajib diisi.";
+      return "";
+    }
+
+    if (field === "email") {
+      const email = draft.email.trim();
+      if (!email) return "Email wajib diisi.";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Format email tidak valid.";
+      return "";
+    }
+
+    if (field === "nomor") {
+      const nomor = draft.nomor.replace(/\D/g, "");
+      if (!nomor) return "Nomor kontak wajib diisi.";
+      if (nomor.length < 9 || nomor.length > 13) return "Nomor kontak harus 9-13 digit.";
+      return "";
+    }
+
+    if (field === "kode") {
+      const code = draft.kode.trim();
+      if (!code) return activeRole === "sppg" ? "Kode SPPG wajib diisi." : "NPSN wajib diisi.";
+      if (activeRole === "sekolah" && !/^\d{8}$/.test(code)) return "NPSN harus 8 digit angka.";
+      return "";
+    }
+
+    if (field === "alamat") {
+      if (!draft.alamat.trim()) return "Alamat wajib diisi.";
+      return "";
+    }
+
+    if (field === "sppg") {
+      if (activeRole === "sekolah" && !draft.sppg.trim()) return "Pilih SPPG yang melayani.";
+      return "";
+    }
+
+    if (field === "password") {
+      if (!draft.password) return "Kata sandi wajib diisi.";
+      if (draft.password.length < 8) return "Kata sandi minimal 8 karakter.";
+      return "";
+    }
+
+    if (field === "konfirmasi") {
+      if (!draft.konfirmasi) return "Konfirmasi kata sandi wajib diisi.";
+      if (draft.password !== draft.konfirmasi) return "Kata sandi tidak cocok.";
+      return "";
+    }
+
+    return "";
+  };
+
+  const validateForm = (snapshot = form, activeRole = role) => {
+    const fields = ["nama", "email", "nomor", "kode", "alamat", "password", "konfirmasi"];
+    if (activeRole === "sekolah") fields.push("sppg");
+
+    const nextErrors = {};
+    fields.forEach((field) => {
+      const message = validateField(field, snapshot[field], snapshot, activeRole);
+      if (message) nextErrors[field] = message;
+    });
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
   const handleChange = (field) => (e) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    const value = e.target.value;
+
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+
+      setFieldErrors((prevErr) => {
+        const nextErr = { ...prevErr };
+        if (touched[field]) {
+          const message = validateField(field, value, next, role);
+          if (message) nextErr[field] = message;
+          else delete nextErr[field];
+        }
+
+        if ((field === "password" || field === "konfirmasi") && touched.konfirmasi) {
+          const confirmMessage = validateField("konfirmasi", next.konfirmasi, next, role);
+          if (confirmMessage) nextErr.konfirmasi = confirmMessage;
+          else delete nextErr.konfirmasi;
+        }
+
+        return nextErr;
+      });
+
+      return next;
+    });
+
+    setError("");
   };
+
+  const handleBlur = (field) => () => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const message = validateField(field, form[field], form, role);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (message) next[field] = message;
+      else delete next[field];
+      return next;
+    });
+  };
+
+  const inputClass = (field) =>
+    `w-full rounded-lg px-3 py-2.5 text-sm outline-none placeholder:text-slate-400 ${
+      fieldErrors[field] ? "border border-red-400 bg-red-50" : "border border-slate-200 bg-slate-50"
+    }`;
+
+  const canSubmit = useMemo(() => {
+    if (isLoading || !agreed) return false;
+    const isValid = validateField("nama", form.nama) === "" &&
+      validateField("email", form.email) === "" &&
+      validateField("nomor", form.nomor) === "" &&
+      validateField("kode", form.kode) === "" &&
+      validateField("alamat", form.alamat) === "" &&
+      validateField("password", form.password) === "" &&
+      validateField("konfirmasi", form.konfirmasi) === "";
+
+    if (!isValid) return false;
+    if (role === "sekolah" && validateField("sppg", form.sppg) !== "") return false;
+    return true;
+  }, [isLoading, agreed, form, role]);
 
   const handleSubmit = async () => {
     setError("");
-    if (form.password !== form.konfirmasi) {
-      setError("Kata sandi tidak cocok.");
-      return;
-    }
+
+    const allTouched = {
+      nama: true,
+      email: true,
+      nomor: true,
+      kode: true,
+      alamat: true,
+      sppg: role === "sekolah",
+      password: true,
+      konfirmasi: true,
+    };
+    setTouched((prev) => ({ ...prev, ...allTouched }));
+
+    if (!validateForm()) return;
+
     if (!agreed) {
       setError("Harap centang persetujuan terlebih dahulu.");
       return;
     }
+
     setIsLoading(true);
     try {
       await register({
         role,
-        name: form.nama,
-        email: form.email,
-        phone: form.nomor,
-        code: form.kode,
-        address: form.alamat,
-        sppg: role === "sekolah" ? form.sppg : null,
+        name: form.nama.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.nomor.replace(/\D/g, ""),
+        code: form.kode.trim(),
+        address: form.alamat.trim(),
+        sppg: role === "sekolah" ? form.sppg.trim() : null,
         password: form.password,
       });
       navigate("/login");
@@ -68,18 +206,16 @@ export default function Register() {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-slate-100 px-4 py-10">
       <div className="w-full max-w-5xl flex rounded-2xl overflow-hidden shadow-xl bg-white">
-
-        {/* Left Panel */}
         <div className="hidden md:flex w-1/2 flex-col justify-between bg-gradient-to-b from-blue-50 to-blue-100 p-8">
           <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-blue-600 transition w-fit"
           >
-            ← Kembali
+            {"<"} Kembali
           </button>
 
           <div className="rounded-xl overflow-hidden shadow-[0_4px_20px_rgba(15,23,42,0.12)] border border-slate-200 bg-white p-3">
-            <img src={Regist_image} alt="RegisterImage" className="w-full object-cover h-full" />
+            <img src={RegistImage} alt="Register" className="w-full object-cover h-full" />
           </div>
 
           <div>
@@ -92,7 +228,7 @@ export default function Register() {
           </div>
 
           <div className="text-xs text-slate-400 space-y-1">
-            <p>© 2026 SIMBA · Capstone Kelompok 11 · All rights reserved.</p>
+            <p>(c) 2026 SIMBA | Capstone Kelompok 11 | All rights reserved.</p>
             <div className="flex gap-3">
               <span className="hover:text-blue-500 cursor-pointer">Kebijakan Privasi</span>
               <span className="hover:text-blue-500 cursor-pointer">Ketentuan Layanan</span>
@@ -101,198 +237,134 @@ export default function Register() {
           </div>
         </div>
 
-        {/* Right Panel */}
         <div className="w-full md:w-7/12 flex flex-col px-8 py-8 overflow-y-auto max-h-screen">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
-            Pilih Peran Institusi
-          </p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Pilih Peran Institusi</p>
 
-          {/* Role Toggle */}
           <div className="flex rounded-lg border border-slate-200 p-1 mb-5 gap-1">
             <button
               type="button"
-              onClick={() => setRole("sppg")}
-              className={`flex-1 py-2 rounded-md text-sm font-semibold transition flex items-center justify-center gap-1 ${
-                role === "sppg"
-                  ? "bg-white shadow text-slate-800 border border-slate-200"
-                  : "text-slate-500 hover:bg-slate-100"
+              onClick={() => {
+                setRole("sppg");
+                setForm((prev) => ({ ...prev, sppg: "" }));
+                setFieldErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.sppg;
+                  return next;
+                });
+              }}
+              className={`flex-1 py-2 rounded-md text-sm font-semibold transition ${
+                role === "sppg" ? "bg-white shadow text-slate-800 border border-slate-200" : "text-slate-500 hover:bg-slate-100"
               }`}
             >
-              🍴 SPPG (Dapur)
+              SPPG (Dapur)
             </button>
             <button
               type="button"
               onClick={() => setRole("sekolah")}
-              className={`flex-1 py-2 rounded-md text-sm font-semibold transition flex items-center justify-center gap-1 ${
-                role === "sekolah"
-                  ? "bg-white shadow text-slate-800 border border-slate-200"
-                  : "text-slate-500 hover:bg-slate-100"
+              className={`flex-1 py-2 rounded-md text-sm font-semibold transition ${
+                role === "sekolah" ? "bg-white shadow text-slate-800 border border-slate-200" : "text-slate-500 hover:bg-slate-100"
               }`}
             >
-              🎓 Sekolah
+              Sekolah
             </button>
           </div>
 
-          {/* Form Fields */}
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">
-                {role === "sppg" ? "Nama SPPG" : "Nama Sekolah"}
-              </label>
-              <input
-                type="text"
-                value={form.nama}
-                onChange={handleChange("nama")}
-                placeholder={role === "sppg" ? "Contoh: SPPG Mentari Pagi" : "Contoh: SDN Kelapa Dua 06"}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-50 outline-none placeholder:text-slate-400"
-              />
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">{role === "sppg" ? "Nama SPPG" : "Nama Sekolah"}</label>
+              <input type="text" value={form.nama} onChange={handleChange("nama")} onBlur={handleBlur("nama")} className={inputClass("nama")} />
+              {fieldErrors.nama ? <p className="text-xs text-red-500 mt-1">{fieldErrors.nama}</p> : null}
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">
-                {role === "sppg" ? "Email Institusi" : "Email Sekolah"}
-              </label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={handleChange("email")}
-                placeholder={role === "sppg" ? "admin@sppgmentari.go.id" : "admin@sekolah.ac.id"}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-50 outline-none placeholder:text-slate-400"
-              />
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">{role === "sppg" ? "Email Institusi" : "Email Sekolah"}</label>
+              <input type="email" value={form.email} onChange={handleChange("email")} onBlur={handleBlur("email")} className={inputClass("email")} />
+              {fieldErrors.email ? <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p> : null}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
               <label className="text-xs font-semibold text-slate-600 mb-1 block">Nomor Kontak</label>
-              <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50 overflow-hidden">
+              <div className={`flex items-center rounded-lg overflow-hidden ${fieldErrors.nomor ? "border border-red-400 bg-red-50" : "border border-slate-200 bg-slate-50"}`}>
                 <span className="px-3 text-sm text-slate-500 border-r border-slate-200">+62</span>
-                <input
-                  type="text"
-                  value={form.nomor}
-                  onChange={handleChange("nomor")}
-                  placeholder="812 3456 7890"
-                  className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none placeholder:text-slate-400"
-                />
+                <input type="text" value={form.nomor} onChange={handleChange("nomor")} onBlur={handleBlur("nomor")} className="flex-1 px-3 py-2.5 text-sm bg-transparent outline-none" />
               </div>
+              {fieldErrors.nomor ? <p className="text-xs text-red-500 mt-1">{fieldErrors.nomor}</p> : null}
             </div>
             <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">
-                {role === "sppg" ? "Kode SPPG" : "NPSN Sekolah"}
-              </label>
-              <input
-                type="text"
-                value={form.kode}
-                onChange={handleChange("kode")}
-                placeholder="01234567"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-50 outline-none placeholder:text-slate-400"
-              />
+              <label className="text-xs font-semibold text-slate-600 mb-1 block">{role === "sppg" ? "Kode SPPG" : "NPSN Sekolah"}</label>
+              <input type="text" value={form.kode} onChange={handleChange("kode")} onBlur={handleBlur("kode")} className={inputClass("kode")} />
+              {fieldErrors.kode ? <p className="text-xs text-red-500 mt-1">{fieldErrors.kode}</p> : null}
             </div>
           </div>
 
           <div className="mb-3">
-            <label className="text-xs font-semibold text-slate-600 mb-1 block">
-              {role === "sppg" ? "Alamat Dapur" : "Alamat Sekolah"}
-            </label>
-            <textarea
-              value={form.alamat}
-              onChange={handleChange("alamat")}
-              placeholder="Jl. Pahlawan No. 45, Kebayoran Baru, Jakarta Selatan"
-              rows={2}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-50 outline-none placeholder:text-slate-400 resize-none"
-            />
+            <label className="text-xs font-semibold text-slate-600 mb-1 block">{role === "sppg" ? "Alamat Dapur" : "Alamat Sekolah"}</label>
+            <textarea value={form.alamat} onChange={handleChange("alamat")} onBlur={handleBlur("alamat")} rows={2} className={`${inputClass("alamat")} resize-none`} />
+            {fieldErrors.alamat ? <p className="text-xs text-red-500 mt-1">{fieldErrors.alamat}</p> : null}
           </div>
 
-          {/* SPPG Dropdown */}
           <div className="mb-1">
             <label className="text-xs font-semibold text-slate-400 mb-1 block">SPPG yang melayani</label>
             <div className="relative">
               <select
                 value={form.sppg}
                 onChange={handleChange("sppg")}
+                onBlur={handleBlur("sppg")}
                 disabled={role === "sppg"}
-                className={`w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-50 outline-none appearance-none ${
-                  role === "sppg" ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                className={`w-full rounded-lg px-3 py-2.5 text-sm outline-none appearance-none ${
+                  fieldErrors.sppg ? "border border-red-400 bg-red-50" : "border border-slate-200 bg-slate-50"
+                } ${role === "sppg" ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <option value="">Pilih SPPG</option>
                 {sppgOptions.map((opt) => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">▾</span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">v</span>
             </div>
-            <p className="text-xs text-slate-400 mt-1">Opsi ini hanya berlaku untuk pendaftaran tipe Sekolah.</p>
+            {fieldErrors.sppg ? <p className="text-xs text-red-500 mt-1">{fieldErrors.sppg}</p> : null}
           </div>
 
-          {/* Password */}
           <div className="mb-3">
             <label className="text-xs font-semibold text-slate-600 mb-1 block">Kata Sandi</label>
-            <div className="flex items-center border border-slate-200 rounded-lg px-3 bg-slate-50">
-              <span className="text-slate-400 mr-2">🔒</span>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={form.password}
-                onChange={handleChange("password")}
-                placeholder="••••••••"
-                className="flex-1 py-2.5 text-sm bg-transparent outline-none placeholder:text-slate-400"
-              />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 text-xs ml-2">
-                {showPassword ? "🙈" : "👁"}
-              </button>
+            <div className={`flex items-center rounded-lg px-3 ${fieldErrors.password ? "border border-red-400 bg-red-50" : "border border-slate-200 bg-slate-50"}`}>
+              <input type={showPassword ? "text" : "password"} value={form.password} onChange={handleChange("password")} onBlur={handleBlur("password")} className="flex-1 py-2.5 text-sm bg-transparent outline-none" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-slate-400 text-xs ml-2">{showPassword ? "Hide" : "Show"}</button>
             </div>
+            {fieldErrors.password ? <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p> : null}
           </div>
 
           <div className="mb-4">
             <label className="text-xs font-semibold text-slate-600 mb-1 block">Konfirmasi Ulang Kata Sandi</label>
-            <div className="flex items-center border border-slate-200 rounded-lg px-3 bg-slate-50">
-              <span className="text-slate-400 mr-2">🔒</span>
-              <input
-                type={showConfirm ? "text" : "password"}
-                value={form.konfirmasi}
-                onChange={handleChange("konfirmasi")}
-                placeholder="••••••••"
-                className="flex-1 py-2.5 text-sm bg-transparent outline-none placeholder:text-slate-400"
-              />
-              <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="text-slate-400 text-xs ml-2">
-                {showConfirm ? "🙈" : "👁"}
-              </button>
+            <div className={`flex items-center rounded-lg px-3 ${fieldErrors.konfirmasi ? "border border-red-400 bg-red-50" : "border border-slate-200 bg-slate-50"}`}>
+              <input type={showConfirm ? "text" : "password"} value={form.konfirmasi} onChange={handleChange("konfirmasi")} onBlur={handleBlur("konfirmasi")} className="flex-1 py-2.5 text-sm bg-transparent outline-none" />
+              <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="text-slate-400 text-xs ml-2">{showConfirm ? "Hide" : "Show"}</button>
             </div>
+            {fieldErrors.konfirmasi ? <p className="text-xs text-red-500 mt-1">{fieldErrors.konfirmasi}</p> : null}
           </div>
 
-          {/* Checkbox */}
           <div className="flex items-start gap-2 mb-4">
-            <input
-              type="checkbox"
-              id="agree"
-              checked={agreed}
-              onChange={(e) => setAgreed(e.target.checked)}
-              className="mt-0.5 accent-blue-600"
-            />
+            <input type="checkbox" id="agree" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 accent-blue-600" />
             <label htmlFor="agree" className="text-xs text-slate-500 leading-relaxed">
-              Saya menyatakan bahwa data yang diberikan adalah benar dan bersedia mengikuti protokol operasional{" "}
-              <span className="text-blue-600 font-semibold">SIMBA.</span>
+              Saya menyatakan bahwa data yang diberikan adalah benar dan bersedia mengikuti protokol operasional
+              <span className="text-blue-600 font-semibold"> SIMBA.</span>
             </label>
           </div>
 
-          {error ? (
-            <p className="text-xs text-red-500 font-semibold mb-3">{error}</p>
-          ) : null}
+          {error ? <p className="text-xs text-red-500 font-semibold mb-3">{error}</p> : null}
 
-          {/* Submit */}
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isLoading}
-            className="w-full py-3 rounded-lg bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition disabled:opacity-60 flex items-center justify-center gap-2"
+            disabled={!canSubmit}
+            className="w-full py-3 rounded-lg bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Memuat..." : "Daftar →"}
+            {isLoading ? "Memuat..." : "Daftar"}
           </button>
 
           <p className="text-center text-xs text-slate-500 mt-3">
-            Sudah punya akun?{" "}
-            <Link to="/login" className="text-blue-600 font-semibold hover:underline">
-              Masuk di sini
-            </Link>
+            Sudah punya akun? <Link to="/login" className="text-blue-600 font-semibold hover:underline">Masuk di sini</Link>
           </p>
         </div>
       </div>

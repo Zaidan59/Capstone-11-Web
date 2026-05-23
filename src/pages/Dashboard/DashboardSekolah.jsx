@@ -15,6 +15,7 @@ import {
   createSekolahDokumentasi,
   getAllSekolah,
   getSekolahById,
+  getSekolahDokumentasi,
 } from "../../services/sekolahService";
 import { useAuth } from "../../hooks/useAuth";
 import { getDisplayValue } from "../../utils/display";
@@ -91,11 +92,16 @@ function normalizeSekolahData(raw) {
   };
 }
 
+function getLatestDocumentationImage(items) {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  const latest = items[0];
+  return latest?.fotoUrl ?? latest?.foto ?? latest?.photoUrl ?? latest?.photo_url ?? null;
+}
+
 export default function DashboardSekolah() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const sekolahId = user?.sekolahId || user?.schoolId || user?.id || null;
-  const profileId = sekolahId;
+  const resolvedSekolahId = user?.sekolahId || user?.schoolId || null;
 
   const [sekolah, setSekolah] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -106,6 +112,7 @@ export default function DashboardSekolah() {
   const [showUploadSuccess, setShowUploadSuccess] = useState(false);
   const [showUnggahSuccess, setShowUnggahSuccess] = useState(false);
   const [showStorageError, setShowStorageError] = useState(false);
+  const [showProfileOverlay, setShowProfileOverlay] = useState(false);
   const [catatan, setCatatan] = useState("");
   const [recentDocs, setRecentDocs] = useState(() => {
     try {
@@ -119,25 +126,75 @@ export default function DashboardSekolah() {
 
   const fileInputRef = useRef(null);
 
-  useEffect(() => {
-    if (!sekolahId) return;
+  const loadSekolahDashboard = async (id) => {
+    if (!id) {
+      setSekolah(null);
+      return;
+    }
 
-    getSekolahById(sekolahId)
-      .then((res) => {
-        const payload = res?.data?.data ?? res?.data ?? null;
-        setSekolah(normalizeSekolahData(payload));
+    Promise.allSettled([getSekolahById(id), getSekolahDokumentasi(id)])
+      .then(async ([sekolahRes, dokumentasiRes]) => {
+        const sekolahPayload =
+          sekolahRes.status === "fulfilled"
+            ? sekolahRes.value?.data?.data ?? sekolahRes.value?.data ?? null
+            : null;
+        const dokumentasiItems =
+          dokumentasiRes.status === "fulfilled"
+            ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
+            : [];
+
+        if (sekolahPayload) {
+          const normalized = normalizeSekolahData(sekolahPayload);
+          const latestDocImage = getLatestDocumentationImage(dokumentasiItems);
+          setSekolah({
+            ...normalized,
+            menuImage: latestDocImage ?? normalized?.menuImage ?? null,
+          });
+          return;
+        }
+
+        throw new Error("Sekolah payload tidak ditemukan");
       })
       .catch(async () => {
         try {
-          const res = await getAllSekolah();
-          const items = Array.isArray(res?.data?.data) ? res.data.data : [];
-          const matched = items.find((item) => item?.id === sekolahId || item?.userId === user?.id) ?? null;
-          setSekolah(normalizeSekolahData(matched));
+          const [allSekolahRes, dokumentasiRes] = await Promise.allSettled([
+            getAllSekolah(),
+            getSekolahDokumentasi(id),
+          ]);
+
+          const items =
+            allSekolahRes.status === "fulfilled"
+              ? Array.isArray(allSekolahRes.value?.data?.data)
+                ? allSekolahRes.value.data.data
+                : []
+              : [];
+          const matched =
+            items.find((item) => item?.id === id || item?.userId === user?.id) ?? null;
+          const normalized = normalizeSekolahData(matched);
+          const dokumentasiItems =
+            dokumentasiRes.status === "fulfilled"
+              ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
+              : [];
+          const latestDocImage = getLatestDocumentationImage(dokumentasiItems);
+
+          setSekolah(
+            normalized
+              ? {
+                  ...normalized,
+                  menuImage: latestDocImage ?? normalized?.menuImage ?? null,
+                }
+              : null,
+          );
         } catch {
           setSekolah(null);
         }
       });
-  }, [sekolahId, user?.id]);
+  };
+
+  useEffect(() => {
+    if (!resolvedSekolahId) return;
+    Promise.resolve().then(() => loadSekolahDashboard(resolvedSekolahId));
+  }, [resolvedSekolahId, user?.id]);
 
   useEffect(() => {
     return () => {
@@ -166,12 +223,12 @@ export default function DashboardSekolah() {
 
     try {
       const uploaded = await uploadImage(uploadedFile, {
-        folder: `simba/sekolah/${sekolahId || "unknown"}`,
+        folder: `simba/sekolah/${resolvedSekolahId || "unknown"}`,
       });
 
       const caption = keterangan || uploadedFile.name;
 
-      await createSekolahDokumentasi(sekolahId, {
+      await createSekolahDokumentasi(resolvedSekolahId, {
         caption,
         photoUrl: uploaded.url,
         photoPublicId: uploaded.publicId,
@@ -185,6 +242,7 @@ export default function DashboardSekolah() {
         ].slice(0, 3),
       );
       localStorage.removeItem(STORAGE_KEY_DOCS);
+      await loadSekolahDashboard(resolvedSekolahId);
       setShowUploadSuccess(true);
       setTimeout(() => setShowUploadSuccess(false), 2500);
     } catch {
@@ -235,7 +293,7 @@ export default function DashboardSekolah() {
     };
 
     try {
-      await createSekolahCatatan(sekolahId, {
+      await createSekolahCatatan(resolvedSekolahId, {
         title: notePayload.judul,
         message: notePayload.meta,
         type: notePayload.type,
@@ -268,6 +326,11 @@ export default function DashboardSekolah() {
       }),
     [],
   );
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <div className="bg-[#F3F4F6] min-h-screen flex flex-col">
@@ -325,15 +388,27 @@ export default function DashboardSekolah() {
               <span className="absolute top-0 right-0 block h-2 w-2 rounded-full ring-2 ring-white bg-red-500" />
             </button>
             <span className="font-medium text-[14px] text-gray-700">{displayName}</span>
-            <button
-              type="button"
-              onClick={() => profileId && navigate(`/profil/sekolah/${profileId}`)}
-              className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Buka Profil Sekolah"
-              disabled={!profileId}
-            >
-              <img src={iconProfile} alt="" />
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowProfileOverlay((prev) => !prev)}
+                className="w-8 h-8 rounded-full bg-gray-100 border border-gray-300 flex items-center justify-center cursor-pointer"
+                aria-label="Buka Menu Profil"
+              >
+                <img src={iconProfile} alt="" />
+              </button>
+              {showProfileOverlay ? (
+                <div className="absolute right-0 top-full mt-2 w-44 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </nav>
@@ -518,10 +593,10 @@ export default function DashboardSekolah() {
             <img src={logo} alt="SIMBA Logo" className="w-9 h-9" />
             <span className="font-bold text-[20px] text-[#1a2233] tracking-wide">SIMBA</span>
           </div>
-          <div className="flex gap-6 text-sm text-slate-500">
-            <a href="#" className="hover:underline">Pusat Dukungan</a>
-            <a href="#" className="hover:underline">Pedoman Kebijakan</a>
-            <a href="#" className="hover:underline">Privasi</a>
+          <div className="flex gap-6 text-sm text-slate-400">
+            <span className="cursor-not-allowed">Pusat Dukungan</span>
+            <span className="cursor-not-allowed">Pedoman Kebijakan</span>
+            <span className="cursor-not-allowed">Privasi</span>
           </div>
         </div>
       </footer>

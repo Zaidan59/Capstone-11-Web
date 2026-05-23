@@ -1,11 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import logo from "../../assets/Logo.png";
-import { useAuth } from "../../hooks/useAuth";
 
 export default function Navbar() {
-  const { user, logout } = useAuth();
-  const isLoggedIn = Boolean(user);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
@@ -50,27 +47,15 @@ export default function Navbar() {
               Artikel
             </Link>
             <span className="h-8 w-px bg-slate-300 mx-2" />
-            {isLoggedIn ? (
-              <button
-                type="button"
-                onClick={logout}
-                className="text-[#232B36] font-medium text-[14px] hover:text-blue-700 transition"
-              >
-                Keluar
-              </button>
-            ) : (
-              <>
-                <Link to="/login" className="text-[#232B36] font-medium text-[14px] hover:text-blue-700 transition">
-                  Masuk
-                </Link>
-                <Link
-                  to="/register"
-                  className="bg-[#1673FF] text-white px-5 py-2 rounded-lg font-medium text-[14px] ml-2 shadow-md hover:bg-blue-700 transition"
-                >
-                  Daftar
-                </Link>
-              </>
-            )}
+            <Link to="/login" className="text-[#232B36] font-medium text-[14px] hover:text-blue-700 transition">
+              Masuk
+            </Link>
+            <Link
+              to="/register"
+              className="bg-[#1673FF] text-white px-5 py-2 rounded-lg font-medium text-[14px] ml-2 shadow-md hover:bg-blue-700 transition"
+            >
+              Daftar
+            </Link>
           </div>
         </div>
 
@@ -104,35 +89,22 @@ export default function Navbar() {
 
             <div className="my-2 h-px bg-slate-200" />
 
-            {isLoggedIn ? (
-              <button
-                type="button"
-                onClick={() => {
-                  closeMobileMenu();
-                  logout();
-                }}
-                className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-[#232B36] hover:bg-slate-100"
+            <div className="space-y-2">
+              <Link
+                to="/login"
+                onClick={closeMobileMenu}
+                className="block rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-sm font-medium text-blue-700 hover:bg-blue-100"
               >
-                Keluar
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <Link
-                  to="/login"
-                  onClick={closeMobileMenu}
-                  className="block rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-sm font-medium text-blue-700 hover:bg-blue-100"
-                >
-                  Masuk
-                </Link>
-                <Link
-                  to="/register"
-                  onClick={closeMobileMenu}
-                  className="block rounded-lg bg-[#1673FF] px-3 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
-                >
-                  Daftar
-                </Link>
-              </div>
-            )}
+                Masuk
+              </Link>
+              <Link
+                to="/register"
+                onClick={closeMobileMenu}
+                className="block rounded-lg bg-[#1673FF] px-3 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Daftar
+              </Link>
+            </div>
           </div>
         </div>
       </div>

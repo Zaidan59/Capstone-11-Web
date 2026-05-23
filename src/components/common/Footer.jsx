@@ -41,7 +41,7 @@ function Footer() {
           <ul className="space-y-4 text-slate-300">
             <li><a href="/" className="hover:text-white hover:underline">Dashboard Utama</a></li>
             <li><a href="/maps" className="hover:text-white hover:underline">Peta Interaktif</a></li>
-            <li><a href="/articles" className="hover:text-white hover:underline">Artikel & Edukasi</a></li>
+            <li><a href="/artikel" className="hover:text-white hover:underline">Artikel & Edukasi</a></li>
           </ul>
         </div>
 

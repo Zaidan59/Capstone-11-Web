@@ -75,6 +75,18 @@ const NotificationSPPG = () => {
       .finally(() => setLoading(false));
   }, [sppgId]);
 
+  const schoolNameById = useMemo(() => {
+    const sourceSchools = Array.isArray(sppgProfile?.schools) ? sppgProfile.schools : [];
+    return Object.fromEntries(
+      sourceSchools
+        .filter((school) => school?.id)
+        .map((school) => [
+          school.id,
+          school?.schoolName ?? school?.name ?? null,
+        ]),
+    );
+  }, [sppgProfile]);
+
   const mappedNotifications = useMemo(
     () =>
       notifications.map((item, index) => {
@@ -86,7 +98,8 @@ const NotificationSPPG = () => {
         return {
           id: item?.id ?? `${typeKey}-${item?.createdAt ?? 'unknown'}-${index}`,
           school: getDisplayValue(
-            item?.schoolName ?? (item?.schoolId ? `Sekolah ${item.schoolId}` : null),
+            item?.schoolName ??
+              (item?.schoolId ? schoolNameById[item.schoolId] ?? `Sekolah ${item.schoolId}` : null),
           ),
           statusLabel: status.label,
           statusColor: status.color,
@@ -96,7 +109,7 @@ const NotificationSPPG = () => {
           message: getDisplayValue(item?.message),
         };
       }),
-    [notifications],
+    [notifications, schoolNameById],
   );
   const pendingCount = mappedNotifications.filter((item) => item.statusLabel === 'Baru').length;
   const totalTodayCount = mappedNotifications.length;
@@ -124,7 +137,7 @@ const NotificationSPPG = () => {
             <span className="font-bold text-[20px] text-[#1a2233] tracking-wide">SIMBA</span>
           </div>
           <div className="flex items-center gap-[18px]">
-            <button className="relative">
+            <button className="relative" onClick={() => navigate('/notification')} aria-label="Buka Notifikasi">
               <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-700">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
