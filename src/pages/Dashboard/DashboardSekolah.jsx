@@ -172,7 +172,7 @@ export default function DashboardSekolah() {
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [catatan, setCatatan] = useState("");
-  const [recentDocs, setRecentDocs] = useState(DEFAULT_DOCS);
+  const [recentDocs, setRecentDocs] = useState([]);
   const [studentCountInput, setStudentCountInput] = useState("");
   const [onboardingPhotoPreview, setOnboardingPhotoPreview] = useState("");
   const [onboardingPhotoFile, setOnboardingPhotoFile] = useState(null);
@@ -205,6 +205,19 @@ export default function DashboardSekolah() {
           dokumentasiRes.status === "fulfilled"
             ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
             : [];
+        
+            setRecentDocs(
+              dokumentasiItems.slice(0, 3).map((item) => ({
+                foto: null,
+                fotoUrl: item?.foto ?? item?.fotoUrl ?? item?.photoUrl ?? null,
+                caption: item?.caption ?? "-",
+                time: item?.productionDate
+                  ? new Date(item.productionDate).toLocaleDateString("id-ID", {
+                      day: "2-digit", month: "short", year: "numeric"
+                    })
+                  : "-",
+              }))
+            );
 
         if (sekolahPayload) {
           const normalized = normalizeSekolahData(sekolahPayload);
@@ -463,12 +476,6 @@ export default function DashboardSekolah() {
         source: "cloudinary",
       });
 
-      setRecentDocs((prev) =>
-        [
-          { foto: null, fotoUrl: uploaded.url, caption, time: getNowLabel() },
-          ...prev,
-        ].slice(0, 3),
-      );
       await loadSekolahDashboard(resolvedSekolahId);
       setShowUploadSuccess(true);
       setTimeout(() => setShowUploadSuccess(false), 2500);
