@@ -5,3 +5,6 @@ export const getNotificationsBySppgId = (sppgId) =>
 
 export const getNotificationsBySchoolId = (schoolId) =>
   api.get('/notifikasi', { params: { schoolId } })
+
+export const updateNotificationStatus = (notificationId, status = 'reviewed') =>
+  api.patch(`/notifikasi/${notificationId}/status`, { status })

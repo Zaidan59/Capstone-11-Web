@@ -75,6 +75,30 @@ function getNowLabel() {
   return `${now.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })} WIB - Hari ini`;
 }
 
+function formatRecentDocTime(item) {
+  const rawValue = item?.createdAt ?? item?.productionDate;
+  if (!rawValue) return "-";
+
+  const parsed = new Date(rawValue);
+  if (Number.isNaN(parsed.getTime())) return "-";
+
+  return parsed.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function normalizeRecentDocItem(item) {
+  return {
+    foto: null,
+    fotoUrl: item?.foto ?? item?.fotoUrl ?? item?.photoUrl ?? null,
+    caption: getDisplayValue(item?.caption, "-"),
+    time: formatRecentDocTime(item),
+    id: item?.id ?? null,
+  };
+}
+
 const locationPinIcon = L.divIcon({
   className: "",
   html: '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:9999px;background:#136DEC;border:3px solid #fff;box-shadow:0 4px 10px rgba(19,109,236,.35)"></span>',
@@ -205,19 +229,14 @@ export default function DashboardSekolah() {
           dokumentasiRes.status === "fulfilled"
             ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
             : [];
-        
-            setRecentDocs(
-              dokumentasiItems.slice(0, 3).map((item) => ({
-                foto: null,
-                fotoUrl: item?.foto ?? item?.fotoUrl ?? item?.photoUrl ?? null,
-                caption: item?.caption ?? "-",
-                time: item?.productionDate
-                  ? new Date(item.productionDate).toLocaleDateString("id-ID", {
-                      day: "2-digit", month: "short", year: "numeric"
-                    })
-                  : "-",
-              }))
-            );
+
+        const sortedDocs = [...dokumentasiItems].sort((first, second) => {
+          const firstTime = new Date(first?.createdAt ?? first?.productionDate ?? 0).getTime();
+          const secondTime = new Date(second?.createdAt ?? second?.productionDate ?? 0).getTime();
+          return secondTime - firstTime;
+        });
+
+        setRecentDocs(sortedDocs.slice(0, 3).map(normalizeRecentDocItem));
 
         if (sekolahPayload) {
           const normalized = normalizeSekolahData(sekolahPayload);
@@ -469,12 +488,21 @@ export default function DashboardSekolah() {
 
       const caption = keterangan || uploadedFile.name;
 
-      await createSekolahDokumentasi(resolvedSekolahId, {
+      const createResponse = await createSekolahDokumentasi(resolvedSekolahId, {
         caption,
         photoUrl: uploaded.url,
         photoPublicId: uploaded.publicId,
         source: "cloudinary",
       });
+
+      const createdDoc = createResponse?.data?.data;
+      if (createdDoc) {
+        setRecentDocs((prev) => {
+          const normalized = normalizeRecentDocItem(createdDoc);
+          const withoutDuplicate = prev.filter((item) => item.id && item.id !== normalized.id);
+          return [normalized, ...withoutDuplicate].slice(0, 3);
+        });
+      }
 
       await loadSekolahDashboard(resolvedSekolahId);
       setShowUploadSuccess(true);
@@ -801,8 +829,11 @@ export default function DashboardSekolah() {
               Unggahan Terbaru
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {recentDocs.map((item, i) => (
-                <div key={i} className="bg-white rounded-xl shadow p-3 flex flex-col items-center">
+              {recentDocs.map((item) => (
+                <div
+                  key={item.id || item.fotoUrl || `${item.caption}-${item.time}`}
+                  className="bg-white rounded-xl shadow p-3 flex flex-col items-center"
+                >
                   <ImageBox
                     src={item.fotoUrl || item.foto}
                     alt={item.caption}
