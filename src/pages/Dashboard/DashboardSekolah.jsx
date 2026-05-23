@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
@@ -82,19 +82,20 @@ const locationPinIcon = L.divIcon({
   iconAnchor: [9, 9],
 });
 
+function MapClickHandler({ onChange }) {
+  useMapEvents({
+    click: (event) => {
+      onChange({ lat: event.latlng.lat, lng: event.latlng.lng });
+    },
+  });
+
+  return null;
+}
+
 function LocationPickerMap({ value, onChange, children }) {
   const lat = Number(value?.lat);
   const lng = Number(value?.lng);
   const center = Number.isFinite(lat) && Number.isFinite(lng) ? [lat, lng] : [-6.2, 106.816666];
-
-  const ClickHandler = () => {
-    useMapEvents({
-      click: (event) => {
-        onChange({ lat: event.latlng.lat, lng: event.latlng.lng });
-      },
-    });
-    return null;
-  };
 
   return (
     <MapContainer center={center} zoom={12} className="h-64 w-full rounded-xl">
@@ -102,7 +103,7 @@ function LocationPickerMap({ value, onChange, children }) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <ClickHandler />
+      <MapClickHandler onChange={onChange} />
       <Marker
         position={center}
         icon={locationPinIcon}
@@ -195,92 +196,13 @@ export default function DashboardSekolah() {
 
   const fileInputRef = useRef(null);
 
-  const loadSekolahDashboard = async (id) => {
-    if (!id) {
-      setSekolah(null);
-      return;
-    }
-
-    Promise.allSettled([getSekolahById(id), getSekolahDokumentasi(id)])
-      .then(async ([sekolahRes, dokumentasiRes]) => {
-        const sekolahPayload =
-          sekolahRes.status === "fulfilled"
-            ? sekolahRes.value?.data?.data ?? sekolahRes.value?.data ?? null
-            : null;
-        const dokumentasiItems =
-          dokumentasiRes.status === "fulfilled"
-            ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
-            : [];
-
-        if (sekolahPayload) {
-          const normalized = normalizeSekolahData(sekolahPayload);
-          const latestDocImage = getLatestDocumentationImage(dokumentasiItems);
-          setSekolah({
-            ...normalized,
-            menuImage: latestDocImage ?? normalized?.menuImage ?? null,
-          });
-          return;
-        }
-
-        throw new Error("Sekolah payload tidak ditemukan");
-      })
-      .catch(async () => {
-        try {
-          const [allSekolahRes, dokumentasiRes] = await Promise.allSettled([
-            getAllSekolah(),
-            getSekolahDokumentasi(id),
-          ]);
-
-          const items =
-            allSekolahRes.status === "fulfilled"
-              ? Array.isArray(allSekolahRes.value?.data?.data)
-                ? allSekolahRes.value.data.data
-                : []
-              : [];
-          const matched =
-            items.find((item) => item?.id === id || item?.userId === user?.id) ?? null;
-          const normalized = normalizeSekolahData(matched);
-          const dokumentasiItems =
-            dokumentasiRes.status === "fulfilled"
-              ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
-              : [];
-          const latestDocImage = getLatestDocumentationImage(dokumentasiItems);
-
-          setSekolah(
-            normalized
-              ? {
-                  ...normalized,
-                  menuImage: latestDocImage ?? normalized?.menuImage ?? null,
-                }
-              : null,
-          );
-        } catch {
-          setSekolah(null);
-        }
-      });
-  };
-
-  useEffect(() => {
-    if (!resolvedSekolahId) return;
-    Promise.resolve().then(() => loadSekolahDashboard(resolvedSekolahId));
-  }, [resolvedSekolahId, user?.id]);
-
-  const isSchoolProfileIncomplete = useMemo(() => {
-    if (!sekolah) return false;
-
-    const studentCount = Number(sekolah?.studentCount ?? 0);
-    const hasPhoto = Boolean(sekolah?.foto);
-
-    return !hasPhoto || !Number.isFinite(studentCount) || studentCount <= 0;
-  }, [sekolah]);
-
   const revokePreviewUrl = (previewUrl) => {
     if (previewUrl && previewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(previewUrl);
     }
   };
 
-  const handleOpenOnboarding = () => {
+  const handleOpenOnboarding = useCallback(() => {
     setOnboardingError("");
     setOnboardingPhotoFile(null);
     revokePreviewUrl(onboardingPhotoPreview);
@@ -294,7 +216,106 @@ export default function DashboardSekolah() {
     setLocationSearchError("");
     setMapTarget(null);
     setShowOnboardingModal(true);
-  };
+  }, [onboardingPhotoPreview, sekolah]);
+
+  const loadSekolahDashboard = useCallback(async (id) => {
+    if (!id) {
+      setSekolah(null);
+      return;
+    }
+
+    try {
+      const [sekolahRes, dokumentasiRes] = await Promise.allSettled([
+        getSekolahById(id),
+        getSekolahDokumentasi(id),
+      ]);
+
+      const sekolahPayload =
+        sekolahRes.status === "fulfilled"
+          ? sekolahRes.value?.data?.data ?? sekolahRes.value?.data ?? null
+          : null;
+      const dokumentasiItems =
+        dokumentasiRes.status === "fulfilled"
+          ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
+          : [];
+
+      if (sekolahPayload) {
+        const normalized = normalizeSekolahData(sekolahPayload);
+        const latestDocImage = getLatestDocumentationImage(dokumentasiItems);
+        const nextSekolah = {
+          ...normalized,
+          menuImage: latestDocImage ?? normalized?.menuImage ?? null,
+        };
+        setSekolah(nextSekolah);
+
+        const studentCount = Number(nextSekolah?.studentCount ?? 0);
+        const hasPhoto = Boolean(nextSekolah?.foto);
+        const isIncomplete = !hasPhoto || !Number.isFinite(studentCount) || studentCount <= 0;
+
+        if (isIncomplete && !hasAutoOpenedOnboarding) {
+          setHasAutoOpenedOnboarding(true);
+          setTimeout(() => {
+            handleOpenOnboarding();
+          }, 0);
+        }
+
+        return;
+      }
+
+      throw new Error("Sekolah payload tidak ditemukan");
+    } catch {
+      try {
+        const [allSekolahRes, dokumentasiRes] = await Promise.allSettled([
+          getAllSekolah(),
+          getSekolahDokumentasi(id),
+        ]);
+
+        const items =
+          allSekolahRes.status === "fulfilled"
+            ? Array.isArray(allSekolahRes.value?.data?.data)
+              ? allSekolahRes.value.data.data
+              : []
+            : [];
+        const matched =
+          items.find((item) => item?.id === id || item?.userId === user?.id) ?? null;
+        const normalized = normalizeSekolahData(matched);
+        const dokumentasiItems =
+          dokumentasiRes.status === "fulfilled"
+            ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
+            : [];
+        const latestDocImage = getLatestDocumentationImage(dokumentasiItems);
+
+        const nextSekolah = normalized
+          ? {
+              ...normalized,
+              menuImage: latestDocImage ?? normalized?.menuImage ?? null,
+            }
+          : null;
+
+        setSekolah(nextSekolah);
+
+        if (nextSekolah) {
+          const studentCount = Number(nextSekolah?.studentCount ?? 0);
+          const hasPhoto = Boolean(nextSekolah?.foto);
+          const isIncomplete = !hasPhoto || !Number.isFinite(studentCount) || studentCount <= 0;
+
+          if (isIncomplete && !hasAutoOpenedOnboarding) {
+            setHasAutoOpenedOnboarding(true);
+            setTimeout(() => {
+              handleOpenOnboarding();
+            }, 0);
+          }
+        }
+      } catch {
+        setSekolah(null);
+      }
+    }
+  }, [handleOpenOnboarding, hasAutoOpenedOnboarding, user?.id]);
+
+  useEffect(() => {
+    if (!resolvedSekolahId) return;
+    loadSekolahDashboard(resolvedSekolahId);
+  }, [loadSekolahDashboard, resolvedSekolahId]);
 
   const handleCloseOnboarding = () => {
     setShowOnboardingModal(false);
@@ -432,8 +453,12 @@ export default function DashboardSekolah() {
   useEffect(() => {
     if (!sekolah || hasAutoOpenedOnboarding || !isSchoolProfileIncomplete) return;
 
-    handleOpenOnboarding();
-    setHasAutoOpenedOnboarding(true);
+    const timer = window.setTimeout(() => {
+      handleOpenOnboarding();
+      setHasAutoOpenedOnboarding(true);
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [sekolah, hasAutoOpenedOnboarding, isSchoolProfileIncomplete]);
 
   useEffect(() => {
