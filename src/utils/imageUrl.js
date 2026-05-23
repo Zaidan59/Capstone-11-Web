@@ -10,6 +10,7 @@ export const resolveImageUrl = (value, fallback = "") => {
   if (typeof value !== "string") return fallback;
 
   if (value.startsWith("data:")) return value;
+  if (value.startsWith("blob:")) return value;
   if (/^https?:\/\//i.test(value)) return value;
 
   const envBase = normalizeBaseUrl(import.meta.env.VITE_ASSET_BASE_URL);

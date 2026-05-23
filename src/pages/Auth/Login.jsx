@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { login as loginService, resolveUserEntityIds } from '../../services/authService'
 import { useAuth } from '../../hooks/useAuth'
 import Logo from '../../assets/Logo.png'
@@ -14,6 +14,8 @@ export default function Login() {
 
   const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const notice = location.state?.notice ?? ''
 
   const roleOptions = [
     { key: 'sppg', label: 'Masuk sebagai SPPG' },
@@ -54,7 +56,15 @@ export default function Login() {
     'w-full rounded-lg border border-transparent bg-[#CFE6F2] py-[13px] pl-11 pr-4 text-[15px] text-[#424752] outline-none transition-colors focus:border-[#00478D]'
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F3FAFF] px-4 py-8 sm:px-6 lg:px-8">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#F3FAFF] px-4 py-8 sm:px-6 lg:px-8">
+      {error && (
+        <div className="pointer-events-none fixed inset-x-0 top-5 z-50 flex justify-center px-4">
+          <div className="pointer-events-auto w-full max-w-md rounded-xl border border-red-200 bg-white/95 px-4 py-3 shadow-[0_12px_30px_rgba(239,68,68,0.20)] backdrop-blur-sm">
+            <p className="m-0 text-center text-sm font-semibold text-red-600">{error}</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex w-full max-w-[1100px] flex-col overflow-hidden rounded-[20px] shadow-[0_8px_48px_0_rgba(0,71,141,0.10)] lg:min-h-[640px] lg:flex-row">
         <div className="relative flex flex-1 flex-col overflow-hidden bg-[#E6F6FF] p-6 sm:p-10 lg:p-12">
           <div className="pointer-events-none absolute -left-20 -top-20 h-80 w-80 rounded-full bg-[#A0F399] opacity-20 blur-[32px]" />
@@ -122,6 +132,11 @@ export default function Login() {
 
             <div className="flex flex-col gap-[22px] rounded-xl bg-white p-6 shadow-sm sm:p-8">
               <h2 className="m-0 text-xl font-bold text-[#071E27]">Selamat Datang Kembali</h2>
+              {notice && (
+                <p className="m-0 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+                  {notice}
+                </p>
+              )}
 
               <div className="flex rounded-lg bg-[#CFE6F2] p-1">
                 {roleOptions.map(({ key, label }) => {
@@ -221,15 +236,6 @@ export default function Login() {
                   </div>
                 </div>
 
-                {error && <p className="m-0 text-center text-[13px] text-red-600">{error}</p>}
-
-                <p className="m-0 text-center text-xs font-semibold text-[#191919]">
-                  Belum memiliki Akun?{' '}
-                  <Link to="/register" className="text-[#00478D] no-underline">
-                    Daftar Disini
-                  </Link>
-                </p>
-
                 <button
                   type="submit"
                   disabled={loading}
@@ -244,6 +250,13 @@ export default function Login() {
                     </svg>
                   )}
                 </button>
+
+                <p className="m-0 text-center text-xs font-semibold text-[#191919]">
+                  Belum memiliki Akun?{' '}
+                  <Link to="/register" className="text-[#00478D] no-underline">
+                    Daftar Disini
+                  </Link>
+                </p>
               </form>
 
               <div className="flex items-start gap-2.5 border-t border-[rgba(194,198,212,0.4)] pt-5">
