@@ -312,6 +312,16 @@ export default function NotificationSekolah() {
                     type="button"
                     onClick={() => {
                       setShowProfileOverlay(false);
+                      navigate('/dashboard/sekolah');
+                    }}
+                    className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                  >
+                    Kembali ke Dashboard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileOverlay(false);
                       if (profileId) {
                         navigate(`/profil/sekolah/${profileId}`);
                       }
