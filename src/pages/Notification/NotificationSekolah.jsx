@@ -4,6 +4,7 @@ import logo from "../../assets/Logo.png";
 import iconProfile from "../../assets/icon_profile.png";
 import { useAuth } from "../../hooks/useAuth";
 import { getNotificationsBySchoolId } from "../../services/notificationService";
+import { getSekolahById } from "../../services/sekolahService";
 import { getDisplayValue } from "../../utils/display";
 import { resolveImageUrl } from "../../utils/imageUrl";
 
@@ -16,7 +17,9 @@ function normalizeSekolahData(raw) {
   if (!raw) return null;
   return {
     ...raw,
+    id: raw?.id ?? raw?.schoolId ?? null,
     nama: raw?.nama ?? raw?.schoolName ?? "-",
+    alamat: raw?.alamat ?? raw?.address ?? "-",
     kota: raw?.kota ?? raw?.city ?? "-",
     jumlahSiswa: raw?.jumlahSiswa ?? raw?.studentCount ?? null,
     foto: raw?.foto ?? raw?.photoUrl ?? null,
@@ -150,13 +153,13 @@ function RightSidebar({ sekolah, totalNotifications, reviewedNotifications }) {
           )}
         </div>
 
-        <div className="p-4 space-y-2">
-          <div className="flex items-center gap-2 text-[12px] text-slate-500">
-            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="p-4 space-y-3">
+          <div className="flex items-start gap-2 text-[12px] text-slate-500">
+            <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="mt-0.5 flex-shrink-0">
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
-            {getDisplayValue(sekolah?.kota)}
+            <span className="leading-5">{getDisplayValue(sekolah?.alamat)}</span>
           </div>
           <div className="flex items-center gap-2 text-[12px] text-slate-500">
             <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -194,13 +197,14 @@ export default function NotificationSekolah() {
   const hasSekolahId = Boolean(sekolahId);
   const [notifs, setNotifs] = useState([]);
   const sekolah = normalizeSekolahData(user?.school ?? user?.sekolah ?? null);
+  const [schoolProfile, setSchoolProfile] = useState(null);
   const [loading, setLoading] = useState(hasSekolahId);
   const [error, setError] = useState(hasSekolahId ? '' : 'ID sekolah belum tersedia.');
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
 
   const displayName = user?.name || user?.identifier || "Pengguna Sekolah";
   const profileAvatar = resolveImageUrl(
-    sekolah?.foto || user?.profilePhotoUrl || user?.avatarUrl || user?.imageUrl || user?.photoUrl,
+    schoolProfile?.foto || sekolah?.foto || user?.profilePhotoUrl || user?.avatarUrl || user?.imageUrl || user?.photoUrl,
     iconProfile,
   );
 
@@ -208,21 +212,42 @@ export default function NotificationSekolah() {
     if (!sekolahId) {
       return;
     }
+
+    let cancelled = false;
+
     Promise.resolve()
       .then(() => {
         setLoading(true);
         setError('');
-        return getNotificationsBySchoolId(sekolahId);
+        return Promise.all([
+          getNotificationsBySchoolId(sekolahId),
+          getSekolahById(sekolahId),
+        ]);
       })
-      .then((res) => {
-        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
+      .then(([notifRes, sekolahRes]) => {
+        if (cancelled) return;
+
+        const data = Array.isArray(notifRes?.data?.data) ? notifRes.data.data : [];
+        const schoolData = normalizeSekolahData(sekolahRes?.data?.data ?? sekolahRes?.data ?? null);
+
         setNotifs(data);
+        setSchoolProfile(schoolData);
       })
       .catch(() => {
+        if (cancelled) return;
         setNotifs([]);
+        setSchoolProfile(null);
         setError('Gagal memuat notifikasi.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [sekolahId]);
 
   const formatTime = (value) => {
@@ -437,7 +462,7 @@ export default function NotificationSekolah() {
 
             <div className="lg:w-72 xl:w-80 flex-shrink-0">
               <RightSidebar
-                sekolah={sekolah}
+                sekolah={schoolProfile ?? sekolah}
                 totalNotifications={totalNotifications}
                 reviewedNotifications={reviewedNotifications}
               />
