@@ -39,6 +39,21 @@ const formatDate = (value) => {
   });
 };
 
+const extractNotificationMessage = (message = '') => {
+  const rawMessage = getDisplayValue(message, '').trim();
+
+  if (!rawMessage) {
+    return '';
+  }
+
+  if (/(mengunggah dokumentasi menu|mengirimkan catatan pengiriman)/i.test(rawMessage)) {
+    const cleanedMessage = rawMessage.split(':').slice(1).join(':').trim();
+    return cleanedMessage || rawMessage;
+  }
+
+  return rawMessage;
+};
+
 const inferNotificationDetailType = (message = '') => {
   if (/mengunggah dokumentasi menu/i.test(message)) {
     return 'documentation';
@@ -162,8 +177,9 @@ const NotificationSPPG = () => {
 
     try {
       const schoolId = item?.schoolId;
-      const message = getDisplayValue(item?.message);
-      const detailType = inferNotificationDetailType(message);
+      const rawMessage = getDisplayValue(item?.rawMessage || item?.message, '');
+      const message = extractNotificationMessage(rawMessage);
+      const detailType = inferNotificationDetailType(rawMessage);
 
       if (!schoolId) {
         throw new Error('ID sekolah tidak tersedia.');
@@ -172,8 +188,8 @@ const NotificationSPPG = () => {
       if (detailType === 'documentation') {
         const response = await getSekolahDokumentasi(schoolId);
         const docs = Array.isArray(response?.data?.data) ? response.data.data : [];
-        const fileNameFromMessage = message.includes(':')
-          ? message.split(':').pop().trim()
+        const fileNameFromMessage = rawMessage.includes(':')
+          ? rawMessage.split(':').pop().trim()
           : '';
 
         const matchedDoc = docs.find((doc) =>
@@ -288,9 +304,10 @@ const NotificationSPPG = () => {
   const mappedNotifications = useMemo(
     () =>
       notifications.map((item, index) => {
+        const rawMessage = getDisplayValue(item?.message, '');
         const normalizedStatusKey = item?.status === 'new' ? 'received' : item?.status ?? 'received';
         const status = statusStyles[normalizedStatusKey] ?? statusStyles.received;
-        const detailType = inferNotificationDetailType(item?.message ?? '');
+        const detailType = inferNotificationDetailType(rawMessage);
         const typeKey = detailType === 'documentation' ? 'menu' : detailType === 'catatan' ? 'pengiriman' : item?.type ?? 'info';
         const icon = typeIcons[typeKey] ?? typeIcons.info;
 
@@ -306,9 +323,10 @@ const NotificationSPPG = () => {
           statusColor: status.color,
           accentColor: status.accent,
           typeIcon: icon,
-          typeLabel: getNotificationTypeLabel(item?.message ?? ''),
+          typeLabel: getNotificationTypeLabel(rawMessage),
           date: formatDate(item?.createdAt),
-          message: getDisplayValue(item?.message),
+          rawMessage,
+          message: extractNotificationMessage(rawMessage),
           detailType,
         };
       }),
@@ -592,7 +610,7 @@ const NotificationSPPG = () => {
                       <div>
                         <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Keterangan</p>
                         <p className="mt-1 font-medium text-slate-700">
-                          {detailStateByNotificationId[selectedNotificationId]?.data?.caption || 'Dokumentasi menu'}
+                          {mappedNotifications.find((item) => item.id === selectedNotificationId)?.message || 'Dokumentasi menu'}
                         </p>
                       </div>
                       <div>
@@ -600,10 +618,6 @@ const NotificationSPPG = () => {
                         <p className="mt-1 font-medium text-slate-700">
                           {formatDate(detailStateByNotificationId[selectedNotificationId]?.data?.productionDate)}
                         </p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Ringkasan Notifikasi</p>
-                        <p className="mt-1 font-medium text-slate-700">{mappedNotifications.find((item) => item.id === selectedNotificationId)?.message}</p>
                       </div>
                     </div>
                     <div>
@@ -625,7 +639,7 @@ const NotificationSPPG = () => {
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Keterangan</p>
                       <p className="mt-1 font-medium text-slate-700">
-                        {detailStateByNotificationId[selectedNotificationId]?.data?.note || mappedNotifications.find((item) => item.id === selectedNotificationId)?.message}
+                        {mappedNotifications.find((item) => item.id === selectedNotificationId)?.message || detailStateByNotificationId[selectedNotificationId]?.data?.note || 'Catatan pengiriman'}
                       </p>
                     </div>
                     {detailStateByNotificationId[selectedNotificationId]?.data?.meta ? (
@@ -637,7 +651,7 @@ const NotificationSPPG = () => {
                   </div>
                 ) : (
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Pesan</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">Keterangan</p>
                     <p className="mt-1 font-medium text-slate-700">{mappedNotifications.find((item) => item.id === selectedNotificationId)?.message}</p>
                   </div>
                 )}
