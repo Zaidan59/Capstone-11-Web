@@ -160,19 +160,60 @@ function MapSearchController({ target }) {
   return null;
 }
 
+function extractNumericValue(value) {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const labeledMatch = trimmed.match(/(?:protein|proteins?)\s*[:=]?\s*([\d.,]+)/i);
+  if (labeledMatch) {
+    return labeledMatch[1].replace(",", ".");
+  }
+
+  const numericMatch = trimmed.match(/([\d.,]+)/);
+  if (numericMatch) {
+    return numericMatch[1].replace(",", ".");
+  }
+
+  return null;
+}
+
 function normalizeSekolahData(raw) {
   if (!raw) return null;
+
+  const proteinValue =
+    raw?.menuProtein ??
+    raw?.protein ??
+    raw?.menu?.protein ??
+    extractNumericValue(raw?.nutrition) ??
+    null;
+
   return {
     ...raw,
     nama: raw?.nama ?? raw?.schoolName ?? "-",
     foto: getImageSource(raw),
     alamat: raw?.alamat ?? raw?.address ?? "-",
     affiliatedKitchen: raw?.affiliatedKitchen ?? raw?.sppgName ?? raw?.sppg?.name ?? "-",
-    menuImage: raw?.menuImage ?? raw?.menu_image_url ?? null,
-    menuMain: raw?.menuMain ?? raw?.mainDish ?? raw?.menu?.mainDish ?? "-",
-    menuSide: raw?.menuSide ?? raw?.sideDish ?? raw?.menu?.sideDish ?? "-",
+    menuImage: raw?.menuImage ?? raw?.menu_image_url ?? raw?.menuImageUrl ?? raw?.imageUrl ?? null,
+    menuMain: raw?.menuMain ?? raw?.menuTitle ?? raw?.todayMenuTitle ?? raw?.mainDish ?? raw?.menu?.mainDish ?? "-",
+    menuSide:
+      raw?.menuSide ??
+      raw?.sideDish ??
+      raw?.todayMenuDetail ??
+      raw?.menuDetail ??
+      raw?.menu?.sideDish ??
+      "-",
     menuCalories: raw?.menuCalories ?? raw?.calories ?? raw?.menu?.calories ?? "-",
-    menuProtein: raw?.menuProtein ?? raw?.protein ?? raw?.menu?.protein ?? "-",
+    menuProtein: proteinValue ?? "-",
     studentCount: raw?.studentCount ?? raw?.studentsCount ?? raw?.jumlahSiswa ?? null,
     lat: raw?.lat ?? raw?.latitude ?? null,
     lng: raw?.lng ?? raw?.longitude ?? null,
@@ -225,6 +266,11 @@ export default function DashboardSekolah() {
           sekolahRes.status === "fulfilled"
             ? sekolahRes.value?.data?.data ?? sekolahRes.value?.data ?? null
             : null;
+        // DEBUG: Log raw sekolah payload
+        if (sekolahPayload) {
+          // eslint-disable-next-line no-console
+          console.log("[DEBUG] Raw sekolah payload", sekolahPayload);
+        }
         const dokumentasiItems =
           dokumentasiRes.status === "fulfilled"
             ? dokumentasiRes.value?.data?.data ?? dokumentasiRes.value?.data ?? []
