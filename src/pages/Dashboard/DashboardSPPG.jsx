@@ -240,22 +240,32 @@ const DashboardSPPG = () => {
   );
   const displayName = sppgData?.name || user?.name || user?.identifier || 'Admin SPPG';
   const schoolCount = servedSchools.length > 0 ? servedSchools.length : '-';
-  const uploadPreviewItems =
-    documentationItems.length > 0
-      ? documentationItems.slice(0, 4).map((item) => ({
-          school: getDisplayValue(item?.schoolName),
-          time: item?.createdAt
-            ? new Date(item.createdAt).toLocaleString('id-ID', {
-                day: '2-digit',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : '-',
-          img: resolveImageUrl(item?.photoUrl),
-          note: getDisplayValue(item?.notes),
-        }))
-      : [];
+  const uploadPreviewItems = useMemo(() => {
+    if (!documentationItems.length) {
+      return [];
+    }
+
+    return [...documentationItems]
+      .sort((first, second) => {
+        const firstTime = new Date(first?.createdAt ?? first?.productionDate ?? 0).getTime();
+        const secondTime = new Date(second?.createdAt ?? second?.productionDate ?? 0).getTime();
+        return secondTime - firstTime;
+      })
+      .slice(0, 4)
+      .map((item) => ({
+        school: getDisplayValue(item?.schoolName),
+        time: item?.createdAt
+          ? new Date(item.createdAt).toLocaleString('id-ID', {
+              day: '2-digit',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : '-',
+        img: resolveImageUrl(item?.photoUrl),
+        note: getDisplayValue(item?.notes),
+      }));
+  }, [documentationItems]);
   const feedbackItems =
     notifications.length > 0
       ? notifications.slice(0, 3).map((item) => ({
@@ -395,7 +405,26 @@ const DashboardSPPG = () => {
       });
       const docsRes = await getSppgMealDocumentation();
       const docs = Array.isArray(docsRes?.data?.data) ? docsRes.data.data : [];
-      setDocumentationItems(docs);
+
+      setDocumentationItems((prev) => {
+        const merged = [...docs, ...prev];
+        const seen = new Set();
+
+        return merged
+          .filter((item) => {
+            const key = item?.id ?? `${item?.photoUrl ?? 'photo'}-${item?.createdAt ?? item?.productionDate ?? ''}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((first, second) => {
+            const firstTime = new Date(first?.createdAt ?? first?.productionDate ?? 0).getTime();
+            const secondTime = new Date(second?.createdAt ?? second?.productionDate ?? 0).getTime();
+            return secondTime - firstTime;
+          })
+          .slice(0, 20);
+      });
+
       setActionMessage('Dokumentasi makanan berhasil dikirim.');
       setMealPhotoFile(null);
       setMealProductionDate('');
