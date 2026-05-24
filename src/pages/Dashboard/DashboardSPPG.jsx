@@ -17,9 +17,9 @@ import IconProfile from "../../assets/icon_profile.png";
 import { useAuth } from '../../hooks/useAuth';
 import { getSPPGById, updateMyProfile } from '../../services/sppgService';
 import { getNotificationsBySppgId } from '../../services/notificationService';
-import { createSppgMealDocumentation, getSppgMealDocumentation, uploadNutritionCsv, uploadWeeklyMenuCsv } from '../../services/sppgDashboardService';
+import { createSppgMealDocumentation, getSppgMealDocumentation, getSppgMenus, uploadNutritionCsv, uploadWeeklyMenuCsv } from '../../services/sppgDashboardService';
 import { uploadProfileImage } from '../../services/mediaService';
-import { getDisplayValue } from '../../utils/display';
+import { formatNumberValue, getDisplayValue } from '../../utils/display';
 import { resolveImageUrl } from '../../utils/imageUrl';
 
 function getImageSource(raw) {
@@ -163,6 +163,7 @@ const DashboardSPPG = () => {
   const [mealTargetSchoolId, setMealTargetSchoolId] = useState('');
   const [mealNotes, setMealNotes] = useState('');
   const [menuData, setMenuData] = useState([]);
+  const [savedMenuData, setSavedMenuData] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [documentationItems, setDocumentationItems] = useState([]);
   const [showProfileOverlay, setShowProfileOverlay] = useState(false);
@@ -195,6 +196,21 @@ const DashboardSPPG = () => {
     lng: '',
   });
 
+  const loadSavedMenuData = async () => {
+    if (!sppgId) {
+      setSavedMenuData([]);
+      return;
+    }
+
+    try {
+      const savedRes = await getSppgMenus(sppgId);
+      const savedRows = Array.isArray(savedRes?.data?.data) ? savedRes.data.data : [];
+      setSavedMenuData(savedRows);
+    } catch {
+      setSavedMenuData([]);
+    }
+  };
+
   useEffect(() => {
     if (!sppgId) {
       return;
@@ -203,7 +219,12 @@ const DashboardSPPG = () => {
       .then(() => {
         setLoading(true);
         setError('');
-        return Promise.all([getSPPGById(sppgId), getNotificationsBySppgId(sppgId), getSppgMealDocumentation()]);
+        return Promise.all([
+          getSPPGById(sppgId),
+          getNotificationsBySppgId(sppgId),
+          getSppgMealDocumentation(),
+          loadSavedMenuData(),
+        ]);
       })
       .then(([sppgRes, notificationRes, documentationRes]) => {
         const data = sppgRes?.data?.data ?? null;
@@ -240,12 +261,42 @@ const DashboardSPPG = () => {
   );
   const displayName = sppgData?.name || user?.name || user?.identifier || 'Admin SPPG';
   const schoolCount = servedSchools.length > 0 ? servedSchools.length : '-';
-  const uploadPreviewItems = useMemo(() => {
+  const getLocalDateKey = (value) => {
+    if (!value) return null;
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    const year = parsed.getFullYear();
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const day = String(parsed.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  };
+  const todayKey = useMemo(() => getLocalDateKey(new Date()), []);
+  const todayWeeklyMenuItems = useMemo(() => {
+    if (!savedMenuData.length) {
+      return [];
+    }
+
+    return [...savedMenuData]
+      .filter((item) => getLocalDateKey(item?.menuDate) === todayKey)
+      .map((item) => ({
+        date: getDisplayValue(item?.menuDate) || '-',
+        mainDish: getDisplayValue(item?.rice) || '-',
+        sideDish: getDisplayValue(item?.sideDish) || '-',
+        fruit: getDisplayValue(item?.fruit) || '-',
+        protein: formatNumberValue(item?.protein) || '-',
+        calories: formatNumberValue(item?.calories) || '-',
+      }));
+  }, [savedMenuData, todayKey]);
+  const todayDocumentationItems = useMemo(() => {
     if (!documentationItems.length) {
       return [];
     }
 
     return [...documentationItems]
+      .filter((item) => getLocalDateKey(item?.productionDate ?? item?.createdAt) === todayKey)
       .sort((first, second) => {
         const firstTime = new Date(first?.createdAt ?? first?.productionDate ?? 0).getTime();
         const secondTime = new Date(second?.createdAt ?? second?.productionDate ?? 0).getTime();
@@ -253,7 +304,7 @@ const DashboardSPPG = () => {
       })
       .slice(0, 4)
       .map((item) => ({
-        school: getDisplayValue(item?.schoolName),
+        school: getDisplayValue(item?.schoolName || 'Sekolah'),
         time: item?.createdAt
           ? new Date(item.createdAt).toLocaleString('id-ID', {
               day: '2-digit',
@@ -261,11 +312,12 @@ const DashboardSPPG = () => {
               hour: '2-digit',
               minute: '2-digit',
             })
-          : '-',
+          : getDisplayValue(item?.productionDate) || '-',
         img: resolveImageUrl(item?.photoUrl),
-        note: getDisplayValue(item?.notes),
+        note: getDisplayValue(item?.notes || 'Dokumentasi menu'),
+        productionDate: getDisplayValue(item?.productionDate),
       }));
-  }, [documentationItems]);
+  }, [documentationItems, todayKey]);
   const feedbackItems =
     notifications.length > 0
       ? notifications.slice(0, 3).map((item) => ({
@@ -283,8 +335,8 @@ const DashboardSPPG = () => {
           variant: item?.status === 'new' ? 'warning' : item?.status === 'reviewed' ? 'success' : 'info',
         }))
       : [];
-  const nutritionCoverage = menuData.length > 0 ? '100%' : '-';
-  const nutritionBarWidth = menuData.length > 0 ? '100%' : '0%';
+  const nutritionCoverage = savedMenuData.length > 0 || menuData.length > 0 ? '100%' : '-';
+  const nutritionBarWidth = savedMenuData.length > 0 || menuData.length > 0 ? '100%' : '0%';
   const todayLabel = useMemo(
     () =>
       new Date().toLocaleDateString('id-ID', {
@@ -357,6 +409,7 @@ const DashboardSPPG = () => {
     setActionMessage('');
     try {
       await uploadWeeklyMenuCsv(file);
+      await loadSavedMenuData();
       setActionMessage(`Berhasil unggah CSV: ${file.name}`);
     } catch (err) {
       setActionMessage(err?.response?.data?.message ?? 'Gagal unggah CSV.');
@@ -754,6 +807,60 @@ const DashboardSPPG = () => {
           {/* Section Title 1 */}
           <div className="flex items-center gap-3 mt-10 mb-4">
             <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">1</div>
+            <h2 className="text-xl font-bold text-gray-900">Menu Hari Ini</h2>
+          </div>
+
+          <div className="bg-white p-8 rounded-xl border border-gray-200 shadow-sm space-y-6">
+            {todayWeeklyMenuItems.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4">
+                {todayWeeklyMenuItems.map((item, index) => (
+                  <div key={`${item.date}-${index}`} className="rounded-xl border border-gray-200 bg-slate-50 p-5">
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">Menu Hari Ini</p>
+                        <p className="mt-1 text-sm text-slate-500">{item.date}</p>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-lg bg-white p-4 border border-slate-200">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Makanan Utama</p>
+                          <p className="mt-2 text-base font-semibold text-slate-800">{item.mainDish}</p>
+                        </div>
+                        <div className="rounded-lg bg-white p-4 border border-slate-200">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Menu Pendamping</p>
+                          <p className="mt-2 text-base font-semibold text-slate-800">{item.sideDish}</p>
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-3">
+                        <div className="rounded-lg bg-white p-4 border border-slate-200">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Buah</p>
+                          <p className="mt-2 text-base font-semibold text-slate-800">{item.fruit}</p>
+                        </div>
+                        <div className="rounded-lg bg-white p-4 border border-slate-200">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Protein</p>
+                          <p className="mt-2 text-base font-semibold text-slate-800">{item.protein} g</p>
+                        </div>
+                        <div className="rounded-lg bg-white p-4 border border-slate-200">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Kalori</p>
+                          <p className="mt-2 text-base font-semibold text-slate-800">{item.calories} kcal</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                <p className="text-sm font-semibold text-slate-700">Belum ada menu hari ini</p>
+                <p className="mt-1 text-xs text-slate-500">Unggah file CSV menu mingguan dan pastikan data tanggal hari ini tersedia di pratinjau.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Section Title 2 */}
+          <div className="flex items-center gap-3 mt-10 mb-4">
+            <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
             <h2 className="text-xl font-bold text-gray-900">Unggah Menu Mingguan (CSV)</h2>
           </div>
 
@@ -827,9 +934,9 @@ const DashboardSPPG = () => {
             </div>
           </div>
 
-          {/* Section Title 2 */}
+          {/* Section Title 3 */}
           <div className="flex items-center gap-3 mt-10 mb-4">
-            <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">2</div>
+            <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
             <h2 className="text-xl font-bold text-gray-900">Unggah Data Nutrisi (CSV)</h2>
           </div>
 
@@ -881,9 +988,9 @@ const DashboardSPPG = () => {
             </div>
           </div>
 
-          {/* Section Title 3 */}
+          {/* Section Title 4 */}
           <div className="flex items-center gap-3 mt-10 mb-4">
-            <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">3</div>
+            <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">4</div>
             <h2 className="text-xl font-bold text-gray-900">Unggah Dokumentasi Makanan</h2>
           </div>
 
@@ -960,9 +1067,9 @@ const DashboardSPPG = () => {
 
             <div className="space-y-4">
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Unggahan Hari Ini</p>
-              {uploadPreviewItems.length > 0 ? (
+              {todayDocumentationItems.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {uploadPreviewItems.map((item, i) => (
+                  {todayDocumentationItems.map((item, i) => (
                     <div key={i} className="rounded-xl overflow-hidden border border-gray-200">
                       <div className="aspect-square w-full overflow-hidden">
                         {item.img ? (
@@ -990,7 +1097,7 @@ const DashboardSPPG = () => {
             </div>
           </div>
 
-          {/* Section Title 4 */}
+          {/* Section Title 5 */}
           <div className="flex items-center gap-3 mt-10 mb-4">
             <div className="w-7 h-7 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0">4</div>
             <h2 className="text-xl font-bold text-gray-900">Umpan Balik & Notifikasi Sekolah</h2>
