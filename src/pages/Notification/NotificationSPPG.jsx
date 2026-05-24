@@ -172,9 +172,15 @@ const NotificationSPPG = () => {
       if (detailType === 'documentation') {
         const response = await getSekolahDokumentasi(schoolId);
         const docs = Array.isArray(response?.data?.data) ? response.data.data : [];
-        const matchedDoc = docs.find((doc) => getDisplayValue(doc?.caption).toLowerCase().includes('dokumentasi'))
-          || docs.find((doc) => (doc?.caption || '').toLowerCase().includes(message.toLowerCase()))
-          || docs[0];
+        const fileNameFromMessage = message.includes(':')
+          ? message.split(':').pop().trim()
+          : '';
+
+        const matchedDoc = docs.find((doc) =>
+          fileNameFromMessage && doc?.caption?.toLowerCase() === fileNameFromMessage.toLowerCase()
+        ) || docs.find((doc) =>
+          fileNameFromMessage && doc?.caption?.toLowerCase().includes(fileNameFromMessage.toLowerCase())
+        ) || docs[docs.length - 1];
 
         const detail = matchedDoc
           ? {
