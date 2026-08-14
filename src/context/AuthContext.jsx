@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AuthContext } from './AuthContextProvider'
 import { clearStoredToken, getStoredToken, setStoredToken } from '../services/api'
 
-const USER_KEY = 'simba_user'
+const USER_KEY = 'sigizi_user'
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {

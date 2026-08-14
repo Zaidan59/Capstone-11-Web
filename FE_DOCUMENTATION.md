@@ -75,8 +75,8 @@ Keterangan:
 ## 5. Alur Auth di Frontend
 
 1. Login memanggil `POST /auth/login`.
-2. Token disimpan di localStorage key: `simba_token`.
-3. Data user disimpan di localStorage key: `simba_user`.
+2. Token disimpan di localStorage key: `sigizi_token`.
+3. Data user disimpan di localStorage key: `sigizi_user`.
 4. Axios interceptor otomatis menambahkan header:
    - `Authorization: Bearer <token>`
 5. Route terlindungi menggunakan `ProtectedRoute`.

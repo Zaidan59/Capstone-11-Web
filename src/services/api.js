@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const TOKEN_KEY = 'simba_token'
+const TOKEN_KEY = 'sigizi_token'
 
 export const getStoredToken = () => localStorage.getItem(TOKEN_KEY)
 export const setStoredToken = (token) => {

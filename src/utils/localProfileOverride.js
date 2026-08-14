@@ -1,4 +1,4 @@
-const KEY = 'simba_sppg_profile_overrides_v1'
+const KEY = 'sigizi_sppg_profile_overrides_v1'
 
 const readAll = () => {
   try {
